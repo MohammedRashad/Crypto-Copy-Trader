@@ -55,7 +55,7 @@ deepdiff==4.0.9
 defer==1.0.6
 defusedxml==0.6.0
 dill==0.3.1.1
-Django==2.2.3
+Django==2.2.8
 dlib==19.17.0
 docker==4.0.2
 docopt==0.6.2
