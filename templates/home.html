@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+ {% block body %}
+<div class="jumbotron text-center">
+	<h1>Welcome to Binance Cryptocurrency CopyTrader</h1>
+	<p class="lead">Easily Scale your Cryptocurrency trading workflow with automatic copying and trading</p>
+	 <b>{{isRunning}}</b><br/><br/>
+		<a href="/run" class="btn btn-primary btn-lg">Run</a>
+		<a href="/stop" class="btn btn-success btn-lg">Stop</a>
+</div>
+{% endblock %}
