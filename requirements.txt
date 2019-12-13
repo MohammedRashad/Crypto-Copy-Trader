@@ -1,4 +1,5 @@
 Flask==1.0.2
+cython
 python_binance==0.7.4
 pandas==0.17.1
 deepdiff==4.0.9
