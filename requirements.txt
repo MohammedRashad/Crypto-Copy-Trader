@@ -167,7 +167,7 @@ Persistence==3.0
 persistent==4.5.1
 pexpect==4.0.1
 pickleshare==0.7.5
-Pillow==6.1.0
+Pillow==6.2.0
 pipreqs==0.4.9
 plainbox==0.25
 plotly==4.1.0
