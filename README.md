@@ -7,3 +7,5 @@ A copy trading tool for cryptocurrencies - written in Python
 # Features
 
 # Known Bugs
+
+# License
