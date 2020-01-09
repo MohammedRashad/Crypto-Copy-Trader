@@ -1,4 +1,4 @@
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, request
 from threading import Thread
 from time import sleep
 from main import *
@@ -6,7 +6,7 @@ from main import *
 app = Flask(__name__)
 
 stop_run = False
-
+test_false = True 
 
 def my_function(client, slaves, old_orders):
     print("I'm in thread #1 ")
@@ -58,10 +58,32 @@ def run_process():
     manual_run()
     return render_template("home.html" , isRunning="Application Running")
 
+
+@app.route('/master', methods=['POST'])
+def master_form():
+    print(request.form['comment_content'])
+    print(request.form['comment_content2'])
+    return "200"
+
+
+@app.route('/slave', methods=['POST'])
+def slave_form():
+    print(request.form['comment_content'])
+    print(request.form['comment_content2'])
+    # Now that get value back to server can send it to a DB(use Flask-SQLAlchemy)
+    return "200"
+
 @app.route('/')
 def homepage():
-    return render_template("home.html" , isRunning= "Application Stop running Status : " +  str(stop_run))
+    global test_false
+
+    if test_false == True :
+        test_false = False
+
+    final =  bool(test_false) ^ bool(stop_run)
+
+    return render_template("home.html" , isRunning= "Is App Running : " +  str(final))
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host= '0.0.0.0', debug=True)

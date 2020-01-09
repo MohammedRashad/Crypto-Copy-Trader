@@ -7,8 +7,8 @@ import json
 import pprint
 from deepdiff import DeepDiff
 import time
-import numpy as np
-import pandas as pd
+#import numpy as np
+#import pandas as pd
 
 
 ############################################
@@ -31,13 +31,13 @@ def create_slave_order(order,slave):
             slave.create_order(symbol=order['symbol'], 
                             side=order['side'], 
                             type=order['type'] ,
-                            price = order['price'] ,
                             quantity=order['origQty'] ,)    
         else : 
             slave.create_order(symbol=order['symbol'], 
                             side=order['side'], 
                             type=order['type'] ,
                             quantity=order['origQty'],
+                            price = order['price'] ,
                             timeInForce=order['timeInForce'] ,)    
         print('order copied')
 
@@ -90,7 +90,7 @@ def server_begin():
     config = reader(open("config_files/config.csv"))
     data = [i for i in config]
     print('Reading configuration file...')
-    slaves = len(data[0]) - 1
+    slaves = len(data[0])
     print(slaves, ' Slave accounts detected')
 
     ## read master keys
@@ -164,16 +164,16 @@ def copy_market(client, slaves, file_name):
                 copy_trade([order] , slaves)
         time.sleep(3)
 
-# ############################################
-# ## -- First Run
-# ############################################
+# ###########################################
+# # -- First Run
+# ###########################################
 
-#client, slaves, old_orders = server_begin()
+# client, slaves, old_orders = server_begin()
 
 # ############################################
 # ## -- Other Runs
 # ############################################
  
 # while True :
-#     old_orders = looping_engine(client, slaves, old_orders)
-#     copy_market(client, slaves, "config_files/symbols.csv")
+#    old_orders = looping_engine(client, slaves, old_orders)
+#    copy_market(client, slaves, "config_files/symbols.csv")

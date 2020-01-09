@@ -1,10 +1,61 @@
 {% extends 'layout.html' %}
  {% block body %}
-<div class="jumbotron text-center">
-	<h1>Welcome to Binance Cryptocurrency CopyTrader</h1>
+<div class="jumbotron ">
+	<h1>Binance Cryptocurrency CopyTrader</h1>
 	<p class="lead">Easily Scale your Cryptocurrency trading workflow with automatic copying and trading</p>
-	 <b>{{isRunning}}</b><br/><br/>
+	<hr/>
+
+	<b>{{isRunning}}</b><br/><br/>
 		<a href="/run" class="btn btn-primary btn-lg">Run</a>
 		<a href="/stop" class="btn btn-success btn-lg">Stop</a>
+
+
+		<hr/>
+
+		<b>Add/Replace Master Account</b><br/>
+
+		<form action="{{ url_for('master_form') }}" method='POST'>
+			<div>
+			  
+				<br/>
+			  Master API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
+			  <span class="character-counter" ></span></div><br/>
+			  Master API Secret : <input id="comment_content2" name="comment_content2"></input>
+
+			  <br/>
+			  <br/>
+			<div>
+			  <button type="submit" class="btn waves-effect waves-light">Add</button>
+			</div>
+		  </form>
+	
+
+		  <hr/>
+
+		  <b>Add New Slave</b><br/>
+
+		  <form action="{{ url_for('homepage') }}" method='POST'>
+				<div>
+				  
+					<br/>
+				  Slave API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
+				  <span class="character-counter" ></span></div><br/>
+				  Slave API Secret : <input id="comment_content2" name="comment_content2"></input>
+	
+				  <br/>
+				  <br/>
+				<div>
+				  <button type="submit" class="btn waves-effect waves-light">Add</button>
+				</div>
+			  </form>
+
+
+			  <hr/>
+
+			  <b>Slaves List</b><br/>
+			  {% for your_list_element in your_list %}
+			  <p>{{ your_list_element }} </p>
+		  {% endfor %}
+		
 </div>
 {% endblock %}
