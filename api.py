@@ -82,7 +82,7 @@ def homepage():
 
     final =  bool(test_false) ^ bool(stop_run)
 
-    return render_template("home.html" , isRunning= "Is App Running : " +  str(final))
+    return render_template("home.html" , isRunning= "Is App Running ? : " +  str(final))
 
 
 if __name__ == "__main__":

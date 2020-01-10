@@ -7,7 +7,7 @@ import json
 import pprint
 from deepdiff import DeepDiff
 import time
-#import numpy as np
+import numpy as np
 #import pandas as pd
 
 
