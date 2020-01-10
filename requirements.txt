@@ -1,6 +1,6 @@
-Flask==1.0.2
+flask==1.0.2
 cython
 python_binance==0.7.4
 deepdiff==4.0.9
-numpy==1.11.0
+numpy>=1.13.3
 binance==0.3

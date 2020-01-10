@@ -1,61 +1,106 @@
 {% extends 'layout.html' %}
- {% block body %}
-<div class="jumbotron ">
+{% block body %}
+<div class="jumbotron">
+	<br />
+	<hr />
+
 	<h1>Binance Cryptocurrency CopyTrader</h1>
 	<p class="lead">Easily Scale your Cryptocurrency trading workflow with automatic copying and trading</p>
-	<hr/>
-
-	<b>{{isRunning}}</b><br/><br/>
-		<a href="/run" class="btn btn-primary btn-lg">Run</a>
-		<a href="/stop" class="btn btn-success btn-lg">Stop</a>
-
-
-		<hr/>
-
-		<b>Add/Replace Master Account</b><br/>
-
-		<form action="{{ url_for('master_form') }}" method='POST'>
-			<div>
-			  
-				<br/>
-			  Master API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
-			  <span class="character-counter" ></span></div><br/>
-			  Master API Secret : <input id="comment_content2" name="comment_content2"></input>
-
-			  <br/>
-			  <br/>
-			<div>
-			  <button type="submit" class="btn waves-effect waves-light">Add</button>
-			</div>
-		  </form>
-	
-
-		  <hr/>
-
-		  <b>Add New Slave</b><br/>
-
-		  <form action="{{ url_for('homepage') }}" method='POST'>
-				<div>
-				  
-					<br/>
-				  Slave API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
-				  <span class="character-counter" ></span></div><br/>
-				  Slave API Secret : <input id="comment_content2" name="comment_content2"></input>
-	
-				  <br/>
-				  <br/>
-				<div>
-				  <button type="submit" class="btn waves-effect waves-light">Add</button>
-				</div>
-			  </form>
+	<hr />
+	<br />
+	<br />
+	<b>{{isRunning}}</b><br /><br />
+	<a href="/run" class="btn btn-primary btn-lg">Run</a>
+	<a href="/stop" class="btn btn-success btn-lg">Stop</a>
 
 
-			  <hr/>
+	<hr />
 
-			  <b>Slaves List</b><br/>
-			  {% for your_list_element in your_list %}
-			  <p>{{ your_list_element }} </p>
-		  {% endfor %}
-		
+	<b>Add/Replace Master Account</b><br />
+
+	<form action="{{ url_for('master_form') }}" method='POST'>
+		<div>
+
+			<br />
+			Master API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
+			<span class="character-counter"></span></div><br />
+		Master API Secret : <input id="comment_content2" name="comment_content2"></input>
+		<br /><br /> Master API Name : <input id="comment_content3" name="comment_content3"></input>
+		<br />
+
+		<br />
+		<div>
+			<button type="submit" class="btn waves-effect waves-light">Add</button>
+		</div>
+	</form>
+
+
+	<hr />
+
+	<b>Add New Slave</b><br />
+
+	<form action="{{ url_for('slave_form') }}" method='POST'>
+		<div>
+
+			<br />
+			Slave API Key : &nbsp;&nbsp; <input id="comment_content" name="comment_content"></input>
+			<span class="character-counter"></span></div><br />
+		Slave API Secret : <input id="comment_content2" name="comment_content2"></input>
+		<br /><br />
+		Slave API Name : <input id="comment_content3" name="comment_content3"></input>
+
+		<br />
+		<br />
+		<div>
+			<button type="submit" class="btn waves-effect waves-light">Add</button>
+		</div>
+	</form>
+
+	<hr />
+
+	<b>Current Master</b><br />
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Key</th>
+				<th>Secret</th>
+			</tr>
+		</thead>
+		{% for row in rows2 %}
+
+		<tr>
+			<td>{{row["name"]}}</td>
+			<td>{{row["key"]}}</td>
+			<td> {{ row["secret"]}}</td>
+		</tr>
+		{% endfor %}
+	</table>
+
+	<a href="/delete_master" class="btn btn-success btn-lg">Delete Master</a>
+
+	<hr />
+
+	<b>Slaves List</b><br />
+
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Key</th>
+				<th>Secret</th>
+			</tr>
+		</thead>
+
+		{% for row in rows %}
+		<tr>
+			<td>{{row["name"]}}</td>
+			<td>{{row["key"]}}</td>
+			<td> {{ row["secret"]}}</td>
+		</tr> {% endfor %}
+	</table>
+	<a href="/delete_slave" class="btn btn-success btn-lg">Delete Slaves</a>
+
+
 </div>
 {% endblock %}
