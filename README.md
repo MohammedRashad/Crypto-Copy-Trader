@@ -5,13 +5,12 @@ A copy trading tool for cryptocurrencies - written in Python
 # Intro
 
 # Features
-- Database 
+- Database SQLite
 - Slave-Master Configuration
-- 
--
--
--
--
+- WebUI
+- Flask API
+- All orders Supported (Market with limited support)
+
 
 # Known Bugs
 - market not working stable
