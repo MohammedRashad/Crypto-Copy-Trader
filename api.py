@@ -51,7 +51,7 @@ def manual_run():
 def set_stop_run():
     global stop_run
     stop_run = True
-    return render_template("home.html" , isRunning="Application Stopped")
+    return redirect("/", code=302)
 
 
 @app.route("/run", methods=['GET'])
@@ -59,7 +59,7 @@ def run_process():
     global stop_run
     stop_run = False
     manual_run()
-    return render_template("home.html" , isRunning="Application Running")
+    return redirect("/", code=302)
 
 
 @app.route('/master', methods=['POST'])
@@ -147,10 +147,10 @@ def homepage():
 
     with open('config_files/config.csv', mode='w') as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(['Master API Key'] + master_key)
-        writer.writerow(['Slave API Keys'] + master_sec)
-        writer.writerow(['Slave API Keys'] + slave_keys)
-        writer.writerow(['Slave API Secrets'] + slave_sec)
+        writer.writerow(['Master API Key'] + master_key + [""])
+        writer.writerow(['Master API Keys'] + master_sec + [""])
+        writer.writerow(['Slave API Keys'] + slave_keys  + [""])
+        writer.writerow(['Slave API Secrets'] + slave_sec + [""])
 
     final_str = "No" if False else "Yes"
     return render_template("home.html" , isRunning= "Is App Running ? : " +  final_str , rows = rows , rows2 = rows2)

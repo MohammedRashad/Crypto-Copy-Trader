@@ -101,7 +101,7 @@ def server_begin():
     order_mapping = []
 
     ## read slave keys
-    while count <= slaves:
+    while count < slaves:
         slave_api.append([data[2][count], data[3][count]])
         order_mapping.append({})
         count += 1
