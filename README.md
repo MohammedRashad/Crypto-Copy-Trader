@@ -15,6 +15,7 @@ A copy trading tool for cryptocurrencies - written in Python
 # Known Bugs
 - market not working stable
 - ratio for not similar accounts 
+- Unknown Delays
 
 # License
 MIT License
