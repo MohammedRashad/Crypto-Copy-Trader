@@ -1,5 +1,5 @@
 # Crypto-Copy-Trader
-A copy trading tool for cryptocurrencies - written in Python
+A copy trading tool for cryptocurrencies - written in Python & Flask
 
 
 # Intro
