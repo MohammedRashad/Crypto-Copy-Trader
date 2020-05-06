@@ -11,7 +11,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - WebUI
 - Flask API
 - All orders Supported (Market with limited support)
-
+- Adding slaves in realtime
 
 # Known Bugs
 - market not working stable
