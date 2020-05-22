@@ -145,7 +145,7 @@ def homepage():
         master_key.append(row["key"])
         master_sec.append(row["secret"])
 
-    with open('config_files/config.csv', mode='w') as file:
+    with open('config_files/config.csv', mode='w', newline='') as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(['Master API Key'] + master_key + [""])
         writer.writerow(['Master API Keys'] + master_sec + [""])

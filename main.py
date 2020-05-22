@@ -7,6 +7,7 @@ import json
 import pprint
 from deepdiff import DeepDiff
 import time
+from ExchangeInterfaces.BinanceExchange import BinanceExchage
 import numpy as np
 #import pandas as pd
 import sqlite3 as sql
@@ -14,29 +15,39 @@ import sqlite3 as sql
 ############################################
 ## -- Helper Functions
 ############################################
+def get_part(order, master_balance):
+    # calculate the part becomes the size of the order from the balance
+    for value in master_balance:
+        if(value['asset'] == str(order['symbol'])[3:]):
+            part = float(float(order['origQty']) * float(order['price']))
+            part = part / float(float(value['free']) + float(value['locked']))
+            return part
 
-def create_slave_order(order,slave):
+def create_slave_order(order,slave, master_balance):
 # This function is responsible for the creation of new slave orders whenever requested
 # Takes as input orders list and slaves lists, and creates orders for them
+
+    part = get_part(order, master_balance)
+
     try :
         if (order['type'] == 'STOP_LOSS_LIMIT' or  order['type'] == "TAKE_PROFIT_LIMIT"):
             slave.create_order(symbol=order['symbol'], 
                             side=order['side'], 
                             type=order['type'] ,
                             price = order['price'] ,
-                            quantity=order['origQty'],
+                            quantityPart=part,
                             timeInForce=order['timeInForce'] , 
                             stopPrice=order['stopPrice'],)  
         if (order['type'] == 'MARKET') : 
-            slave.create_order(symbol=order['symbol'], 
-                            side=order['side'], 
+            slave.create_order(symbol=order['symbol'],
+                            side=order['side'],
                             type=order['type'] ,
-                            quantity=order['origQty'] ,)    
+                            quantity=part ,)
         else : 
             slave.create_order(symbol=order['symbol'], 
                             side=order['side'], 
                             type=order['type'] ,
-                            quantity=order['origQty'],
+                            quantityPart=part,
                             price = order['price'] ,
                             timeInForce=order['timeInForce'] ,)    
         print('order copied')
@@ -45,7 +56,7 @@ def create_slave_order(order,slave):
         print(str(e))
 
 
-def copy_trade(orders,slaves,old_orders=None):
+def copy_trade(orders,slaves,master_balance, old_orders=None ):
 ## This is the main copy trading function managing all the operations happening
 ## doesn't track old orders in the first run of course
     print('in copy')
@@ -56,7 +67,7 @@ def copy_trade(orders,slaves,old_orders=None):
                 print('----------------------')
                 for slave in slaves : 
                     print('-- slaves first time--')
-                    create_slave_order(order,slave)
+                    create_slave_order(order,slave, master_balance)
         old_orders = orders.copy()
         return old_orders
     else :
@@ -66,7 +77,7 @@ def copy_trade(orders,slaves,old_orders=None):
                 print('-- orders nth time --') 
                 print('----------------------')
                 for slave in slaves : 
-                    create_slave_order(order,slave)
+                    create_slave_order(order,slave, master_balance)
         old_orders = orders.copy()
         return old_orders
 
@@ -79,7 +90,7 @@ def order_cancel_checker(i_orders,i_old_orders,i_slaves):
             slave_open_orders = slave.get_open_orders()
             for ordr_open in slave_open_orders :
                 for order in i_old_orders :
-                    if (ordr_open['origQty'] == order['origQty']) and  (ordr_open['symbol'] == order['symbol']) and not (order in i_orders):
+                    if ( (ordr_open['price'] == order['price']) and (ordr_open['symbol'] == order['symbol'])) and not (order in i_orders):
                         slave.cancel_order(symbol=ordr_open['symbol'],orderId=ordr_open['orderId'])
 
 def server_begin():
@@ -106,7 +117,10 @@ def server_begin():
         order_mapping.append({})
         count += 1
 
-    client = Client(master_api_key, master_api_secret)
+    file = open('config_files/symbols.csv', "r")
+    symbols = file.readlines()
+
+    client = BinanceExchage(master_api_key, master_api_secret, symbols)
 
     print ('')
     print ('Get Master Orders...')
@@ -117,7 +131,7 @@ def server_begin():
     slave_number = 0
     slaves = []
     for i in slave_api:
-        slave_binance = Client(api_key=i[0], api_secret=i[1])
+        slave_binance = BinanceExchage(apiKey=i[0], apiSecret=i[1], pairs= symbols)
         slave_open_orders = slave_binance.get_open_orders()
         print ('')
         print ('Opening Slave Account #'+str(slave_number)+' ...')
@@ -134,15 +148,17 @@ def server_begin():
 
     orders = client.get_open_orders()
     print ('Open Master Orders are ' + str(len(orders)) + ' ...')
-    old_orders = copy_trade(orders , slaves)
+
+    old_orders = copy_trade(orders , slaves, master_balance=client.get_balance())
     return client, slaves, old_orders
 
 
 def looping_engine(client, slaves, old_orders):
     orders = client.get_open_orders()
-    order_cancel_checker(orders , old_orders , slaves)
+    order_cancel_checker(orders , old_orders, slaves)
     print ('Open Master Orders are ' + str(len(orders)) + ' ...')
-    old_orders = copy_trade(orders , slaves, old_orders)
+
+    old_orders = copy_trade(orders , slaves, old_orders=old_orders, master_balance=client.get_balance())
     print("Sleeping...")
     time.sleep(3)
     return old_orders
@@ -151,7 +167,8 @@ def copy_market(client, slaves, file_name):
     symbols = []
     print("getting symbols..")
     file = open(file_name, "r") 
-    symbols = file.readlines() 
+    symbols = file.readlines()
+
 
     print("getting orders..")
     orders_to_exec = []
@@ -161,7 +178,7 @@ def copy_market(client, slaves, file_name):
         for order in orders :
             if order["type"] == 'MARKET' and order["time"] > (int(time.time()) - 60*5000) :
                 print("making order..")
-                copy_trade([order] , slaves)
+                copy_trade([order] , slaves,master_balance = client.get_balance())
         time.sleep(3)
 
 # ###########################################
