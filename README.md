@@ -12,10 +12,10 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Flask API
 - All orders Supported (Market with limited support)
 - Adding slaves in realtime
+- Ratio for not similar accounts 
 
 # Known Bugs
-- market not working stable
-- ratio for not similar accounts 
+- market orders not working stable
 - Unknown Delays
 
 # License
