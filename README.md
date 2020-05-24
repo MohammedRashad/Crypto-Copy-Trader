@@ -13,6 +13,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - All orders Supported (Market with limited support)
 - Adding slaves in realtime
 - Ratio for not similar accounts 
+- Built with bootstrap
 
 # Known Bugs
 - market orders not working stable
