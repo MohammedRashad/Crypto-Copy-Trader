@@ -9,6 +9,7 @@ app = Flask(__name__)
 
 stop_run = False
 test_false = True
+socket_usage = False
 
 
 def my_function(client, slaves, old_orders):
@@ -33,16 +34,27 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
 
 def on_order_caller(event):
     # callback for event new order
+    if not event['e'] == "executionReport":
+        return
+    if event['X'] == 'FILLED':
+        return
+    if event['o'] == 'MARKET':  # if market order we dont have price and I cant calculate quantity
+        event['p'] = on_order_caller.slaves[0].connection.get_ticker(symbol=event['s'])['lastPrice']
+
+    print(event)
     for slave in on_order_caller.slaves:
         slave.on_order_handler(event)
 
 def socket_function(master, slaves, old_orders):
     print("Using web socket")
-    global stop_run
     master_socket = master.create_socket()
     on_order_caller.slaves = slaves   # may be bad solution but its working :D
-    master_socket.start_user_socket(on_order_caller)
+    con = master_socket.start_user_socket(on_order_caller)
     master_socket.start()
+    # set variable for stop socket
+    global socket_usage
+    socket_usage = True
+    set_stop_run.master_socket = master_socket
 
 
 def manual_run():
@@ -63,10 +75,17 @@ def manual_run():
     return "Processing"
 
 
+
 @app.route("/stop", methods=['GET'])
 def set_stop_run():
     global stop_run
     stop_run = True
+    #stop if socket
+    global socket_usage
+    if socket_usage:
+        set_stop_run.master_socket.close()
+        stop_run = False
+        print('WebSocket closed')
     return redirect("/", code=302)
 
 

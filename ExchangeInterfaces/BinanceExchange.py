@@ -41,16 +41,9 @@ class BinanceExchage(Exchange):
 
     def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
-        if not event['e'] == "executionReport":
-            return
+
         if event['s'] not in self.pairs:
             return
-        if event['o'] == 'MARKET':  # if market order we dont have price and I cant calculate quantity
-            event['p'] = self.connection.get_ticker(symbol=event['s'])['lastPrice']
-            if event['X'] == 'FILLED':
-                return
-
-        print(event)
 
         if event['x'] == 'CANCELED':
             slave_order_id = self._cancel_order_detector(event)
