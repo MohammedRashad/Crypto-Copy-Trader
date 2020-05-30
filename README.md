@@ -16,7 +16,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Built with bootstrap
 
 # Known Bugs
-- market orders not working stable
+- Market orders not stable
 - Unknown Delays
 
 # Contributors 
