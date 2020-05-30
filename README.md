@@ -19,5 +19,10 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - market orders not working stable
 - Unknown Delays
 
+# Contributors 
+
+Thanks to everyone trying to help, special thanks for [NickPius
+](https://github.com/mokolotron) for multiple patches.
+
 # License
 MIT License
