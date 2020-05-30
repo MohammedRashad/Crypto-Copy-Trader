@@ -1,6 +1,6 @@
 # Crypto-Copy-Trader
-A copy trading tool for cryptocurrencies - written in Python & Flask
-
+Copy trading tool for cryptocurrencies - written in Python & Flask
+<br/> Makes you copy high-performing masters without doing any effort
 
 # Intro
 bot used to make a mass buying or selling of identical bots to do basic copy trading. 
