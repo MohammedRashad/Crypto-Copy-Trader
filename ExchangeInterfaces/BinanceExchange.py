@@ -5,17 +5,32 @@ from binance.websockets import BinanceSocketManager
 
 class BinanceExchage(Exchange):
 
-    def __init__(self, apiKey, apiSecret, pairs, master_balance=None):
-        super().__init__(apiKey, apiSecret, pairs, master_balance)
+    def __init__(self, apiKey, apiSecret, pairs):
+        super().__init__(apiKey, apiSecret, pairs)
         self.exchange_name = "Binance"
         self.connection = Client(self.api['key'], self.api['secret'])
         self.update_balance()
+        self.socket = BinanceSocketManager(self.connection)
+        self.socket.start_user_socket(self.on_balance_update)
+        self.socket.start()
 
     def update_balance(self):
         account_information = self.connection.get_account()
+        self.set_balance(account_information['balances'])
+
+    def set_balance(self, balances):
         symbols = self.get_trading_symbols()
-        newDict = list(filter(lambda elem: str(elem['asset']) in symbols, account_information['balances']))
-        self.balance = newDict
+        actual_balance = list(filter(lambda elem: str(elem['asset']) in symbols, balances))
+        self.balance = actual_balance
+
+    def on_balance_update(self, upd_balance_ev):
+        if upd_balance_ev['e'] == 'outboundAccountInfo':
+            balance = []
+            for ev in upd_balance_ev['B']:
+                balance.append({'asset': ev['a'],
+                                'free': ev['f'],
+                                'locked': ev['l']})
+            self.set_balance(balance)
 
     def get_balance(self):
         return self.balance
@@ -34,11 +49,6 @@ class BinanceExchage(Exchange):
             if ordr_open['price'] == event['p']:
                 return ordr_open['orderId']
 
-
-    def create_socket(self):
-        bm = BinanceSocketManager(self.connection)
-        return bm
-
     def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
 
@@ -54,13 +64,10 @@ class BinanceExchage(Exchange):
                               event['S'],
                               event['o'],
                               event['p'],
-                              self.get_part(event['s'], event['p'], event['q']),
+                              event['q'],
                               event['f'],
                               event['P']
                               )
-
-
-
 
     def create_order(self, symbol, side, type, price, quantityPart, timeInForce, stopPrice=0):
         """

@@ -8,6 +8,8 @@ import pprint
 from deepdiff import DeepDiff
 import time
 from ExchangeInterfaces.BinanceExchange import BinanceExchage
+
+
 import numpy as np
 # import pandas as pd
 import sqlite3 as sql
@@ -21,7 +23,7 @@ import sqlite3 as sql
 def create_slave_order(order, slave, client):
     # This function is responsible for the creation of new slave orders whenever requested
     # Takes as input orders list and slaves lists, and creates orders for them
-    part = client.get_part(order['symbol'], order['price'], order['origQty'], client.get_balance())
+    part = client.get_part(order['symbol'])
 
     if (order['type'] == 'STOP_LOSS_LIMIT' or order['type'] == "TAKE_PROFIT_LIMIT"):
         slave.create_order(symbol=order['symbol'],
@@ -112,6 +114,7 @@ def server_begin():
     file = open('config_files/symbols.csv', "r")
     symbols = file.readlines()
 
+
     client = BinanceExchage(master_api_key, master_api_secret, symbols)
 
     print('')
@@ -124,7 +127,7 @@ def server_begin():
     slave_number = 0
     slaves = []
     for i in slave_api:
-        slave_binance = BinanceExchage(apiKey=i[0], apiSecret=i[1], pairs=symbols, master_balance=master_balance)
+        slave_binance = BinanceExchage(apiKey=i[0], apiSecret=i[1], pairs=symbols)
         slave_open_orders = slave_binance.get_open_orders()
         print('')
         print('Opening Slave Account #' + str(slave_number) + ' ...')
@@ -143,6 +146,7 @@ def server_begin():
     print('Open Master Orders are ' + str(len(orders)) + ' ...')
 
     old_orders = copy_trade(orders, slaves, client=client)
+
     return client, slaves, old_orders
 
 

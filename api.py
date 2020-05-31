@@ -4,6 +4,7 @@ from time import sleep
 from main import *
 import sqlite3 as sql
 import csv
+from SlaveContainer import SlaveContainer
 
 app = Flask(__name__)
 
@@ -32,34 +33,34 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
         print("time elasped in thread" + Thread_num + " = " + str(end - start_time) + " sec")
 
 
-def on_order_caller(event):
-    # callback for event new order
-    if not event['e'] == "executionReport":
-        return
-    if event['X'] == 'FILLED':
-        return
-    if event['o'] == 'MARKET':  # if market order we dont have price and I cant calculate quantity
-        event['p'] = on_order_caller.slaves[0].connection.get_ticker(symbol=event['s'])['lastPrice']
-
-    print(event)
-    for slave in on_order_caller.slaves:
-        slave.on_order_handler(event)
+# def on_order_caller(event):
+#     # callback for event new order
+#     if event['e'] == 'outboundAccountInfo':
+#         # update master balance
+#         return
+#     elif not event['e'] == "executionReport":
+#         return
+#     if event['X'] == 'FILLED':
+#         return
+#     if event['o'] == 'MARKET':  # if market order we dont have price and I cant calculate quantity
+#         event['p'] = on_order_caller.slaves[0].connection.get_ticker(symbol=event['s'])['lastPrice']
+#
+#     print(event)
+#     for slave in on_order_caller.slaves:
+#         slave.on_order_handler(event)
 
 def socket_function(master, slaves, old_orders):
     print("Using web socket")
-    master_socket = master.create_socket()
-    on_order_caller.slaves = slaves   # may be bad solution but its working :D
-    con = master_socket.start_user_socket(on_order_caller)
-    master_socket.start()
+    container = SlaveContainer(master, slaves)
+    container.start()
     # set variable for stop socket
     global socket_usage
     socket_usage = True
-    set_stop_run.master_socket = master_socket
 
 
 def manual_run():
     client, slaves, old_orders = server_begin()
-    #t1 = Thread(target=my_function ,args=(client, slaves, old_orders,))
+    # t1 = Thread(target=my_function ,args=(client, slaves, old_orders,))
     t1 = Thread(target=socket_function, args=(client, slaves, old_orders,))
     #     t2 = Thread(target=my_function2, args=("config_files/symbols.csv",client, slaves, old_orders, "2"))
     #     t3 = Thread(target=my_function2, args=("config_files/symbols2.csv",client, slaves, old_orders, "3"))
@@ -75,12 +76,11 @@ def manual_run():
     return "Processing"
 
 
-
 @app.route("/stop", methods=['GET'])
 def set_stop_run():
     global stop_run
     stop_run = True
-    #stop if socket
+    # stop if socket
     global socket_usage
     if socket_usage:
         set_stop_run.master_socket.close()
@@ -105,7 +105,8 @@ def master_form():
     with sql.connect("database.db") as con:
         cur = con.cursor()
         cur.execute("INSERT INTO keys (name,key,secret,type) VALUES (?,?,?,?)", (
-        request.form['comment_content3'], request.form['comment_content'], request.form['comment_content2'], "master"))
+            request.form['comment_content3'], request.form['comment_content'], request.form['comment_content2'],
+            "master"))
         con.commit()
         print("Record successfully added")
 
@@ -144,7 +145,8 @@ def slave_form():
     with sql.connect("database.db") as con:
         cur = con.cursor()
         cur.execute("INSERT INTO keys (name,key,secret,type) VALUES (?,?,?,?)", (
-        request.form['comment_content3'], request.form['comment_content'], request.form['comment_content2'], "slave"))
+            request.form['comment_content3'], request.form['comment_content'], request.form['comment_content2'],
+            "slave"))
         con.commit()
         print("Record successfully added")
     con.close()

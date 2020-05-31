@@ -3,12 +3,11 @@ class Exchange:
     exchange_name = None
     master_balance = None
 
-    def __init__(self, apiKey, apiSecret, pairs, master_balance=None):
+    def __init__(self, apiKey, apiSecret, pairs, ):
         self.api = {'key': apiKey,
                     'secret': apiSecret}
         # delete '\n' from symbols'
         self.pairs = list(map(lambda pair: pair.replace('\n', ''), pairs))
-        self.master_balance = master_balance
 
     def get_balance(self):
         pass
@@ -27,32 +26,18 @@ class Exchange:
     def cancel_order(self, symbol, orderId):
         pass
 
-    def create_socket(self):
-        print('websocket for this exchange ' + self.exchange_name + ' is not supported now')
-
     def create_order(self, symbol, side, type, price, quantity):
         pass
 
-    def get_part(self, symbol, price, origQty, master_balance=None):
-        # calculate the part becomes the size of the order from the balance
-        if not self.master_balance is None:
-            pass
-        elif not master_balance is None :
-            self.master_balance = master_balance
-        else:
-            print('wrong usage function get_part(), '
-                  'if need to call from rest api, give master_balance argument')
-            exit(-5)
-        for value in self.master_balance:
-            if (value['asset'] == str(symbol)[3:]):
-                part = float(float(origQty) * float(price))
-                part = part / float(float(value['free']) + float(value['locked']))
-                return part
-
+    def get_part(self, symbol, quantity, price):
+        cur_bal = list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
+        part = float(quantity)*float(price) / (float(cur_bal['free']))
+        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
+        return part
 
     def calc_quatity_from_part(self, symbol, quantityPart, price):
         # calculate quantity from quantityPart
         balanceIndex = [idx for idx, element in enumerate(self.get_balance()) if element['asset'] == str(symbol)[3:]][0]
-        balance = float(self.get_balance()[balanceIndex]['free']) + float(self.get_balance()[balanceIndex]['locked'])
+        balance = float(self.get_balance()[balanceIndex]['free'])
         quantity = round((float(quantityPart) * float(balance) / float(price)), 6)
         return quantity
