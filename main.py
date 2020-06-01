@@ -23,7 +23,7 @@ import sqlite3 as sql
 def create_slave_order(order, slave, client):
     # This function is responsible for the creation of new slave orders whenever requested
     # Takes as input orders list and slaves lists, and creates orders for them
-    part = client.get_part(order['symbol'])
+    part = client.get_part(order['symbol'], order['origQty'], order['price'])
 
     if (order['type'] == 'STOP_LOSS_LIMIT' or order['type'] == "TAKE_PROFIT_LIMIT"):
         slave.create_order(symbol=order['symbol'],

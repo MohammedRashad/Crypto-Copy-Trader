@@ -42,6 +42,9 @@ class BinanceExchage(Exchange):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
         print('order canceled')
 
+    def stop(self):
+        self.socket.close()
+
     def _cancel_order_detector(self, event):
         # detect order id which need to be canceled
         slave_open_orders = self.connection.get_open_orders()

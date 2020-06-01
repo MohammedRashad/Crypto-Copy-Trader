@@ -1,5 +1,6 @@
 import asyncio
 
+
 class SlaveContainer:
     def __init__(self, master, slaves):
         self.master = master
@@ -7,6 +8,11 @@ class SlaveContainer:
 
     def start(self):
         self.master.socket.start_user_socket(self.on_order_caller)
+
+    def stop(self):
+        self.master.stop()
+        for slave in self.slaves:
+            slave.stop()
 
     def on_order_caller(self, event):
         # callback for event new order
