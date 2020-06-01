@@ -49,16 +49,12 @@ class BinanceExchage(Exchange):
             if ordr_open['price'] == event['p']:
                 return ordr_open['orderId']
 
-    def on_order_handler(self, event):
+    async def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
-
-        if event['s'] not in self.pairs:
-            return
 
         if event['x'] == 'CANCELED':
             slave_order_id = self._cancel_order_detector(event)
             self.cancel_order(event['s'], slave_order_id)
-
         else:
             self.create_order(event['s'],
                               event['S'],
