@@ -25,4 +25,4 @@ Thanks to everyone trying to help, special thanks for [NickPius
 ](https://github.com/mokolotron) for multiple patches.
 
 # License
-MIT License
+Apache 2.0 License
