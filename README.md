@@ -16,7 +16,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Built with bootstrap
 
 # Known Bugs
-- Market orders not stable
+- Market orders not working currently
 - Unknown Delays
 
 # Contributors 
@@ -25,4 +25,4 @@ Thanks to everyone trying to help, special thanks for [NickPius
 ](https://github.com/mokolotron) for multiple patches.
 
 # License
-MIT License
+Apache 2.0 License
