@@ -39,7 +39,7 @@ class SlaveContainer:
                 return
 
             if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
-                order_event['p'] = self.master.connection.get_ticker(symbol=event['s'])['lastPrice']
+                order_event['p'] = self.master.connection.get_ticker(symbol=order_event['s'])['lastPrice']
 
             part = self.master.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
 
