@@ -3,6 +3,7 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 
+
 class BinanceExchage(Exchange):
 
     def __init__(self, apiKey, apiSecret, pairs):
@@ -78,7 +79,16 @@ class BinanceExchage(Exchange):
         :param timeInForce: required if limit order
         :param stopPrice: required if type == STOP_LOSS or TAKE_PROFIT
         """
-        quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
+        # # if order[side] == sell don't need calculate quantity
+        # if side == 'BUY':
+        #     quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
+        # else:
+        #     quantity = quantityPart
+
+        quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
+        print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
+                       + str(self.get_balance_coin_by_symbol(symbol)) +
+              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
         try:
             if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):
                 self.connection.create_order(symbol=symbol,
