@@ -1,10 +1,10 @@
 from flask import Flask, Response, render_template, request, redirect
+from SlaveContainer import SlaveContainer
 from threading import Thread
 from time import sleep
 from main import *
 import sqlite3 as sql
 import csv
-from SlaveContainer import SlaveContainer
 
 app = Flask(__name__)
 
@@ -33,27 +33,12 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
         print("time elasped in thread" + Thread_num + " = " + str(end - start_time) + " sec")
 
 
-# def on_order_caller(event):
-#     # callback for event new order
-#     if event['e'] == 'outboundAccountInfo':
-#         # update master balance
-#         return
-#     elif not event['e'] == "executionReport":
-#         return
-#     if event['X'] == 'FILLED':
-#         return
-#     if event['o'] == 'MARKET':  # if market order we dont have price and I cant calculate quantity
-#         event['p'] = on_order_caller.slaves[0].connection.get_ticker(symbol=event['s'])['lastPrice']
-#
-#     print(event)
-#     for slave in on_order_caller.slaves:
-#         slave.on_order_handler(event)
-
 def socket_function(master, slaves, old_orders):
     print("Using web socket")
     container = SlaveContainer(master, slaves)
     container.start()
     # set variable for stop socket
+    set_stop_run.container = container
     global socket_usage
     socket_usage = True
 
@@ -78,14 +63,8 @@ def manual_run():
 
 @app.route("/stop", methods=['GET'])
 def set_stop_run():
-    global stop_run
-    stop_run = True
-    # stop if socket
-    global socket_usage
-    if socket_usage:
-        set_stop_run.master_socket.close()
-        stop_run = False
-        print('WebSocket closed')
+    set_stop_run.container.stop()
+    print('WebSocket closed')
     return redirect("/", code=302)
 
 

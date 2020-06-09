@@ -3,6 +3,7 @@ from binance.client import Client
 from binance.websockets import BinanceSocketManager
 
 
+
 class BinanceExchage(Exchange):
 
     def __init__(self, apiKey, apiSecret, pairs):
@@ -42,6 +43,9 @@ class BinanceExchage(Exchange):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
         print('order canceled')
 
+    def stop(self):
+        self.socket.close()
+
     def _cancel_order_detector(self, event):
         # detect order id which need to be canceled
         slave_open_orders = self.connection.get_open_orders()
@@ -49,16 +53,12 @@ class BinanceExchage(Exchange):
             if ordr_open['price'] == event['p']:
                 return ordr_open['orderId']
 
-    def on_order_handler(self, event):
+    async def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
-
-        if event['s'] not in self.pairs:
-            return
 
         if event['x'] == 'CANCELED':
             slave_order_id = self._cancel_order_detector(event)
             self.cancel_order(event['s'], slave_order_id)
-
         else:
             self.create_order(event['s'],
                               event['S'],
@@ -79,7 +79,16 @@ class BinanceExchage(Exchange):
         :param timeInForce: required if limit order
         :param stopPrice: required if type == STOP_LOSS or TAKE_PROFIT
         """
-        quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
+        # # if order[side] == sell don't need calculate quantity
+        # if side == 'BUY':
+        #     quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
+        # else:
+        #     quantity = quantityPart
+
+        quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
+        print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
+                       + str(self.get_balance_coin_by_symbol(symbol)) +
+              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
         try:
             if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):
                 self.connection.create_order(symbol=symbol,
