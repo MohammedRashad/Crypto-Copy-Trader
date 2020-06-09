@@ -10,19 +10,24 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Slave-Master Configuration
 - WebUI
 - Flask API
-- All orders Supported (Market with limited support)
+- All orders Supported
 - Adding slaves in realtime
 - Ratio for not similar accounts 
 - Built with bootstrap
+- Market orders support
 
 # Known Bugs
-- Market orders not working currently
-- Unknown Delays
+- Currently Nothing
+
+ Please [open anissue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
+ 
 
 # Contributors 
 
 Thanks to everyone trying to help, special thanks for [NickPius
 ](https://github.com/mokolotron) for multiple patches.
+
+Contact me if you want to join as a contributor. 
 
 # License
 Apache 2.0 License
