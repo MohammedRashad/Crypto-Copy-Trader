@@ -19,7 +19,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 # Known Bugs
 - Currently Nothing
 
- Please [open anissue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
+ Please [open an issue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
  
 
 # Contributors 
