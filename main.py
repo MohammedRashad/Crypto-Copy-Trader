@@ -9,7 +9,6 @@ from deepdiff import DeepDiff
 import time
 from ExchangeInterfaces.BinanceExchange import BinanceExchage
 
-
 import numpy as np
 # import pandas as pd
 import sqlite3 as sql
@@ -33,7 +32,7 @@ def create_slave_order(order, slave, client):
                            quantityPart=part,
                            timeInForce=order['timeInForce'],
                            stopPrice=order['stopPrice'], )
-    if (order['type'] == 'MARKET'):
+    elif (order['type'] == 'MARKET'):
         slave.create_order(symbol=order['symbol'],
                            side=order['side'],
                            type=order['type'],
@@ -114,7 +113,6 @@ def server_begin():
     file = open('config_files/symbols.csv', "r")
     symbols = file.readlines()
 
-
     client = BinanceExchage(master_api_key, master_api_secret, symbols)
 
     print('')
@@ -142,7 +140,7 @@ def server_begin():
     print('Will start copying from now...please place a new order on Binance')
     print('')
 
-    orders = client.get_open_orders()
+    # orders = client.get_open_orders()
     print('Open Master Orders are ' + str(len(orders)) + ' ...')
 
     old_orders = copy_trade(orders, slaves, client=client)
