@@ -45,19 +45,8 @@ def socket_function(master, slaves, old_orders):
 
 def manual_run():
     client, slaves, old_orders = server_begin()
-    # t1 = Thread(target=my_function ,args=(client, slaves, old_orders,))
     t1 = Thread(target=socket_function, args=(client, slaves, old_orders,))
-    #     t2 = Thread(target=my_function2, args=("config_files/symbols.csv",client, slaves, old_orders, "2"))
-    #     t3 = Thread(target=my_function2, args=("config_files/symbols2.csv",client, slaves, old_orders, "3"))
-    #     t4 = Thread(target=my_function2, args=("config_files/symbols3.csv",client, slaves, old_orders,"4"))
-    #     t5 = Thread(target=my_function2, args=("config_files/symbols4.csv",client, slaves, old_orders,"5"))
-
     t1.start()
-    #     t2.start()
-    #     t3.start()
-    #     t4.start()
-    #     t5.start()
-
     return "Processing"
 
 
