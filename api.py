@@ -33,9 +33,8 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
         print("time elasped in thread" + Thread_num + " = " + str(end - start_time) + " sec")
 
 
-def socket_function(master, slaves, old_orders):
+def socket_function(container):
     print("Using web socket")
-    container = SlaveContainer(master, slaves)
     container.start()
     # set variable for stop socket
     set_stop_run.container = container
@@ -44,8 +43,8 @@ def socket_function(master, slaves, old_orders):
 
 
 def manual_run():
-    client, slaves, old_orders = server_begin()
-    t1 = Thread(target=socket_function, args=(client, slaves, old_orders,))
+    container, old_orders = server_begin()
+    t1 = Thread(target=socket_function, args=(container,))
     t1.start()
     return "Processing"
 

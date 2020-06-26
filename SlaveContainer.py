@@ -1,14 +1,35 @@
 import asyncio
+from ExchangeInterfaces.BinanceExchange import BinanceExchange
+
+
+def ex_name_to_class(single_config):
+    exchange_name = single_config['exchange_name']
+    necessary_class = globals()[exchange_name]
+    return necessary_class
 
 
 class SlaveContainer:
-    def __init__(self, master, slaves):
-        self.is_last_order_event_completed = True
-        self.master = master
+    def __init__(self, config, pairs):
+
+        # necessary_class = ex_name_to_class(config['master'])
+        single_config = config['master']
+        exchange_name = single_config['exchange_name']
+        necessary_class = globals()[exchange_name]
+        self.master = necessary_class(config['master']['key'], config['master']['secret'], pairs)
+
+        slaves = []
+        for slave_config in config['slaves']:
+            # necessary_class = ex_name_to_class(slave_config)
+
+            exchange_name = slave_config['exchange_name']
+            necessary_class = globals()[exchange_name]
+
+            slave = necessary_class(slave_config['key'], slave_config['secret'], pairs)
+            slaves.append(slave)
         self.slaves = slaves
 
     def start(self):
-        self.master.socket.start_user_socket(self.on_order_caller)
+        self.master.start(self.on_order_caller)
 
     def stop(self):
         self.master.stop()
@@ -19,31 +40,17 @@ class SlaveContainer:
         # callback for event new order
         print(event)
 
-        if event['e'] == 'outboundAccountPosition':
-            self.is_last_order_event_completed = True
+        p_event = self.master.process_event(event)
 
-        if event['e'] == 'executionReport':
-            if event['X'] == 'FILLED':
-                return
-            self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
-            # sometimes can came event executionReport x == filled and x == new together so we need flag
-            self.is_last_order_event_completed = False
+        if p_event is None:
             return
-        elif event['e'] == 'outboundAccountInfo':
-            if self.is_last_order_event_completed:
-                return
 
-            order_event = self.last_order_event
+        for slave in self.slaves:
+            asyncio.run(slave.on_order_handler(p_event))
 
-            if order_event['s'] not in self.master.pairs:
-                return
-
-            if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
-                order_event['p'] = self.master.connection.get_ticker(symbol=order_event['s'])['lastPrice']
-
-            part = self.master.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
-
-            self.master.on_balance_update(event)
-            order_event['q'] = part
-            for slave in self.slaves:
-                asyncio.run(slave.on_order_handler(order_event))
+    def first_copy(self):
+        orders = self.master.get_open_orders()
+        for slave in self.slaves:
+            for o in orders:
+                asyncio.run(slave.create_order(o['']))
+        

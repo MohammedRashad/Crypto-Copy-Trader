@@ -1,10 +1,10 @@
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
+from Helpers import Order
 
 
-
-class BinanceExchage(Exchange):
+class BinanceExchange(Exchange):
 
     def __init__(self, apiKey, apiSecret, pairs):
         super().__init__(apiKey, apiSecret, pairs)
@@ -14,6 +14,10 @@ class BinanceExchage(Exchange):
         self.socket = BinanceSocketManager(self.connection)
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
+        self.is_last_order_event_completed = True
+
+    def start(self, caller_callback):
+        self.socket.start_user_socket(caller_callback)
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -33,11 +37,12 @@ class BinanceExchage(Exchange):
                                 'locked': ev['l']})
             self.set_balance(balance)
 
-    def get_balance(self):
-        return self.balance
-
     def get_open_orders(self):
-        return self.connection.get_open_orders()
+        orders = self.connection.get_open_orders()
+        general_orders = []
+        for o in orders:
+            general_orders.append(Order(o['price'], o['id'], o['symbol'], o['side'], o['type'], self.exchange_name))
+        return general_orders
 
     def cancel_order(self, symbol, orderId):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
@@ -52,6 +57,36 @@ class BinanceExchage(Exchange):
         for ordr_open in slave_open_orders:
             if ordr_open['price'] == event['p']:
                 return ordr_open['orderId']
+
+    def process_event(self, event):
+
+        if event['e'] == 'outboundAccountPosition':
+            self.is_last_order_event_completed = True
+
+        if event['e'] == 'executionReport':
+            if event['X'] == 'FILLED':
+                return
+            self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
+            # sometimes can came event executionReport x == filled and x == new together so we need flag
+            self.is_last_order_event_completed = False
+            return
+        elif event['e'] == 'outboundAccountInfo':
+            if self.is_last_order_event_completed:
+                return
+
+            order_event = self.last_order_event
+
+            if order_event['s'] not in self.pairs:
+                return
+
+            if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
+                order_event['p'] = self.connection.get_ticker(symbol=order_event['s'])['lastPrice']
+
+            part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
+
+            self.on_balance_update(event)
+            order_event['q'] = part
+            return order_event
 
     async def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
@@ -87,7 +122,7 @@ class BinanceExchage(Exchange):
 
         quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
         print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
-                       + str(self.get_balance_coin_by_symbol(symbol)) +
+              + str(self.get_balance_coin_by_symbol(symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
         try:
             if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):

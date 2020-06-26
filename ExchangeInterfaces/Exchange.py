@@ -10,7 +10,7 @@ class Exchange:
         self.pairs = list(map(lambda pair: pair.replace('\n', ''), pairs))
 
     def get_balance(self):
-        pass
+        return self.balance
 
     def get_trading_symbols(self):
         symbols = set()
