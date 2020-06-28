@@ -41,7 +41,8 @@ class BinanceExchange(Exchange):
         orders = self.connection.get_open_orders()
         general_orders = []
         for o in orders:
-            general_orders.append(Order(o['price'], o['id'], o['symbol'], o['side'], o['type'], self.exchange_name))
+            quantityPart = self.get_part(o['symbol'], o["origQty"], o['price'], o['side'])
+            general_orders.append(Order(o['price'], o["origQty"], quantityPart, o['orderId'], o['symbol'], o['side'], o['type'], self.exchange_name))
         return general_orders
 
     def cancel_order(self, symbol, orderId):
@@ -104,7 +105,7 @@ class BinanceExchange(Exchange):
                               event['P']
                               )
 
-    def create_order(self, symbol, side, type, price, quantityPart, timeInForce, stopPrice=0):
+    def create_order(self, symbol, side, type, price, quantityPart, timeInForce="GTC", stopPrice=0):
         """
         :param symbol:
         :param side:
@@ -148,3 +149,6 @@ class BinanceExchange(Exchange):
             print("order created")
         except Exception as e:
             print(str(e))
+
+    async def async_create_order(self, symbol, side, type, price, quantityPart, stop=0):
+        self.create_order(symbol, side, type, price, quantityPart, stopPrice=stop)

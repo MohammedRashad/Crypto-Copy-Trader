@@ -1,4 +1,7 @@
-class Exchange:
+from abc import ABC, abstractmethod
+
+
+class Exchange(ABC):
     balance = None
     exchange_name = None
     master_balance = None
@@ -20,13 +23,36 @@ class Exchange:
             symbols.add(pair[3:])
         return symbols
 
+    @abstractmethod
+    def stop(self):
+        pass
+
+    @abstractmethod
+    def start(self, caller_callback):
+        pass
+
+    @abstractmethod
+    def process_event(self, event):
+        pass
+
+    @abstractmethod
+    def on_order_handler(self, event):
+        pass
+
+    @abstractmethod
     def get_open_orders(self):
         pass
 
+    @abstractmethod
     def cancel_order(self, symbol, orderId):
         pass
 
+    @abstractmethod
     def create_order(self, symbol, side, type, price, quantity):
+        pass
+
+    @abstractmethod
+    async def async_create_order(self, symbol, side, type, price, quantity, stop=0):
         pass
 
     def get_balance_market_by_symbol(self, symbol):
@@ -64,3 +90,5 @@ class Exchange:
         # cur_bal = float(self.get_balance()[balanceIndex]['free'])
         quantity = round(quantity, 6)
         return quantity
+
+

@@ -108,7 +108,7 @@ def server_begin():
     print('')
     print('Get Master Orders...')
     orders = client.get_open_orders()
-    pprint.pprint(orders)
+    pprint.pprint(str(orders))
     print('Opening Slave Accounts...')
 
     slaves = slave_container.slaves
@@ -129,9 +129,10 @@ def server_begin():
 
     print('Open Master Orders are ' + str(len(orders)) + ' ...')
 
-    old_orders = copy_trade(orders, slaves, client=client)
+    slave_container.first_copy(orders)
+    #old_orders = copy_trade(orders, slaves, client=client)
 
-    return slave_container, old_orders
+    return slave_container
 
 
 def looping_engine(client, slaves, old_orders):

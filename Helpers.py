@@ -1,8 +1,21 @@
 class Order:
-    def __init__(self, price, id, symbol, side, type, exchange ):
+    def __init__(self, price, amount, quantityPart, order_id, symbol, side, order_type, exchange, stop=0):
         self.price = price
-        self.id = id
+        self.amount = amount
+        self.quantityPart = quantityPart
+        self.id = order_id
         self.symbol = symbol
         self.side = side
-        self.type = type
+        self.type = order_type
         self.exchange = exchange
+        self.stop = stop
+
+    def __str__(self):
+        return f"Order: price: {self.price}," \
+               f" symbol: {self.symbol}," \
+               f" amount: {self.amount}," \
+               f" side: {self.side}," \
+               f" type: {self.type},"
+
+    def __repr__(self):
+        return self.__str__()

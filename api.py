@@ -43,7 +43,7 @@ def socket_function(container):
 
 
 def manual_run():
-    container, old_orders = server_begin()
+    container = server_begin()
     t1 = Thread(target=socket_function, args=(container,))
     t1.start()
     return "Processing"
