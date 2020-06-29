@@ -16,8 +16,9 @@ ENDPOINT = "/realtime"
 class BitmexExchange(Exchange):
 
     def __init__(self, apiKey, apiSecret, pairs):
+        pairs = self._pairs_transform_slef(pairs)
         super().__init__(apiKey, apiSecret, pairs)
-        self.exchange_name = "Binance"
+        self.exchange_name = "Bitmex"
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
         self.update_balance()
         self.socket = None
@@ -50,17 +51,24 @@ class BitmexExchange(Exchange):
         open_orders = list(filter(lambda o: o['ordStatus'] == 'New', orders[0]))
         general_orders = []
         for o in open_orders:
-            quantityPart = self.get_part(o['symbol'], o["origQty"], o['price'], o['side'])
-            general_orders.append(Order(o['price'], o["origQty"],
-                                        quantityPart, o['orderId'], o['symbol'], o['side'], o['type'],
+            quantityPart = self.get_part(o['symbol'], o["orderQty"], o['price'])
+            general_orders.append(Order(o['price'], o["orderQty"],
+                                        quantityPart, o['orderID'], self._self_pair_to_general(o['symbol']), o['side'].upper(), o['ordType'].upper(),
                                         self.exchange_name))
         # positions = self.connection.Position.Position_get().result()
         # open_positions = list(filter(lambda o: o['isOpen'] == 'True', positions[0]))
-        return open_orders
+        return general_orders
 
-    def get_part(self, quantity, price):
-         ticker = self.socket.get_ticker()
-         pass
+    def get_part(self, symbol, quantity, price):
+        btc = float(quantity) / float(price)
+        btc_satoshi = btc * (10 ** 8)
+        part = float(btc_satoshi) / ( float(self.get_balance()) + float(btc_satoshi) )
+        return part
+
+    def calc_quantity_from_part(self, symbol, quantityPart, price, **kwargs):
+        btc_satoshi = float(quantityPart) * float(self.get_balance())
+        amount_usd = float(btc_satoshi) * float(price)
+        return amount_usd
 
     def process_event(self, event):
         print(event)
@@ -81,3 +89,22 @@ class BitmexExchange(Exchange):
 
     def async_create_order(self, symbol, side, type, price, quantity, stop=0):
         self.create_order(symbol, side, type, price, quantity)
+
+    def _pairs_transform_slef(self, pairs):
+        new_pairs = []
+        for pair in pairs:
+            if pair.strip() in self.pairs_dicit.keys():
+                new_pairs.append(self.pairs_dicit[pair.strip()])
+        return new_pairs
+
+    def _self_pair_to_general(self, pair):
+        reverse_dict = dict(zip(self.pairs_dicit.values(), self.pairs_dicit.keys()))
+        return reverse_dict[pair]
+
+    pairs_dicit = {
+        'BTCUSDT': 'XBTUSD',
+        'ETHUSDT': 'ETHUSD',
+        # 'BCHUSDT': 'BCHUSD',
+        # 'TRXUSDT': 'TRXU20',
+        # 'XRPUSDT': 'XRPUSD'
+    }
