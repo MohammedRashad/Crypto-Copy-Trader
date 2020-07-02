@@ -55,5 +55,4 @@ class SlaveContainer:
         # orders = self.master.get_open_orders()
         for slave in self.slaves:
             for o in orders:
-                asyncio.run(slave.async_create_order(o.symbol, o.side, o.type,
-                                               o.price, o.quantityPart, o.stop))
+                asyncio.run(slave.async_create_order(o))

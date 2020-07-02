@@ -84,7 +84,7 @@ def order_cancel_checker(i_orders, i_old_orders, i_slaves):
                 for order in i_old_orders:
                     if ((ordr_open['price'] == order['price']) and (ordr_open['symbol'] == order['symbol'])) and not (
                             order in i_orders):
-                        slave.cancel_order(symbol=ordr_open['symbol'], orderId=ordr_open['orderId'])
+                        slave.cancel_order(orderId=ordr_open['orderId'], symbol=ordr_open['symbol'])
 
 
 def server_begin():

@@ -51,10 +51,9 @@ class BitmexExchange(Exchange):
         open_orders = list(filter(lambda o: o['ordStatus'] == 'New', orders[0]))
         general_orders = []
         for o in open_orders:
-            quantityPart = self.get_part(o['symbol'], o["orderQty"], o['price'])
-            general_orders.append(Order(o['price'], o["orderQty"],
-                                        quantityPart, o['orderID'], self._self_pair_to_general(o['symbol']), o['side'].upper(), o['ordType'].upper(),
-                                        self.exchange_name))
+            general_orders.append(
+                self._self_order_to_global(o)
+            )
         # positions = self.connection.Position.Position_get().result()
         # open_positions = list(filter(lambda o: o['isOpen'] == 'True', positions[0]))
         return general_orders
@@ -62,7 +61,8 @@ class BitmexExchange(Exchange):
     def get_part(self, symbol, quantity, price):
         btc = float(quantity) / float(price)
         btc_satoshi = btc * (10 ** 8)
-        part = float(btc_satoshi) / ( float(self.get_balance()) + float(btc_satoshi) )
+        part = float(btc_satoshi) / (float(self.get_balance()) + float(btc_satoshi))
+        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
 
     def calc_quantity_from_part(self, symbol, quantityPart, price, **kwargs):
@@ -71,17 +71,37 @@ class BitmexExchange(Exchange):
         return amount_usd
 
     def process_event(self, event):
-        print(event)
+        if event['action'] == "insert":
+            if event['data'][0]['ordStatus'] == 'New':
+                order = self._self_order_to_global(event['data'])
+                return order
 
-    def _cancel_order_detector(self, event):
+    def on_oreder_handler(self, event):
+        pass
+        # elif [event['action'] == 'update']:
+        #     if event['data'][0]['ordStatus'] == 'Canceled':
+        #
+        #         order_id = self._cancel_order_detector()
+        #         self.cancel_order()
+
+    def _self_order_to_global(self, o) -> Order:
+        return Order(o['price'], o["orderQty"],
+                     self.get_part(o['symbol'], o["orderQty"], o['price']),
+                     o['orderID'],
+                     self._self_pair_to_general(o['symbol']),
+                     o['side'].upper(),
+                     o['ordType'].upper(),
+                     self.exchange_name)
+
+    def _cancel_order_detector(self, order):
         # detect order id which need to be canceled
         open_orders = self.get_open_orders()
         for ordr_open in open_orders:
-            if ordr_open['price'] == event['p']:
-                return ordr_open['orderId']
+            if ordr_open['price'] == order.price:
+                return ordr_open['orderID']
 
-    def cancel_order(self, symbol, orderId):
-        pass
+    def cancel_order(self, order_id):
+        self.connection.Order.Order_cancel(order_id)
         # self.connection.
 
     def create_order(self, symbol, side, type, price, quantity):

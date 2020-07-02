@@ -42,21 +42,23 @@ class BinanceExchange(Exchange):
         general_orders = []
         for o in orders:
             quantityPart = self.get_part(o['symbol'], o["origQty"], o['price'], o['side'])
-            general_orders.append(Order(o['price'], o["origQty"], quantityPart, o['orderId'], o['symbol'], o['side'], o['type'], self.exchange_name))
+            general_orders.append(
+                Order(o['price'], o["origQty"], quantityPart, o['orderId'], o['symbol'], o['side'], o['type'],
+                      self.exchange_name))
         return general_orders
 
-    def cancel_order(self, symbol, orderId):
+    def cancel_order(self, orderId, symbol):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
         print('order canceled')
 
     def stop(self):
         self.socket.close()
 
-    def _cancel_order_detector(self, event):
+    def _cancel_order_detector(self, price):
         # detect order id which need to be canceled
         slave_open_orders = self.connection.get_open_orders()
         for ordr_open in slave_open_orders:
-            if ordr_open['price'] == event['p']:
+            if ordr_open['price'] == price:
                 return ordr_open['orderId']
 
     def process_event(self, event):
@@ -67,10 +69,18 @@ class BinanceExchange(Exchange):
         if event['e'] == 'executionReport':
             if event['X'] == 'FILLED':
                 return
+            elif event['x'] == 'CANCELED':
+                return {'action': 'cancel',
+                        'symbol': event['s'],
+                        'price': event['p'],
+                        'exchange': self.exchange_name,
+                        'original_event': event
+                        }
             self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
             # sometimes can came event executionReport x == filled and x == new together so we need flag
             self.is_last_order_event_completed = False
             return
+
         elif event['e'] == 'outboundAccountInfo':
             if self.is_last_order_event_completed:
                 return
@@ -83,72 +93,98 @@ class BinanceExchange(Exchange):
             if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
                 order_event['p'] = self.connection.get_ticker(symbol=order_event['s'])['lastPrice']
 
-            part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
+            # part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
 
             self.on_balance_update(event)
-            order_event['q'] = part
-            return order_event
+
+            order = Order(order_event['p'],
+                          order_event['q'],
+                          self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S']),
+                          order_event['i'],
+                          order_event['s'],
+                          order_event['S'],
+                          order_event['o'],
+                          self.exchange_name,
+                          order_event['P'])
+            return {
+                'action': 'new_order',
+                'order': order,
+                'exchange': self.exchange_name,
+                'original_event': event
+            }
 
     async def on_order_handler(self, event):
         # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
 
-        if event['x'] == 'CANCELED':
-            slave_order_id = self._cancel_order_detector(event)
-            self.cancel_order(event['s'], slave_order_id)
-        else:
-            self.create_order(event['s'],
-                              event['S'],
-                              event['o'],
-                              event['p'],
-                              event['q'],
-                              event['f'],
-                              event['P']
-                              )
+        if event['action'] == 'cancel':
+            slave_order_id = self._cancel_order_detector(event['price'])
+            self.cancel_order(slave_order_id, event['symbol'])
+        elif event['action'] == 'new_order':
+            self.create_order(event['order'])
 
-    def create_order(self, symbol, side, type, price, quantityPart, timeInForce="GTC", stopPrice=0):
+    def create_order(self, order):
         """
-        :param symbol:
-        :param side:
-        :param type: LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER
-        :param price: required if limit order
-        :param quantityPart: the part that becomes an order from the entire balance
-        :param timeInForce: required if limit order
-        :param stopPrice: required if type == STOP_LOSS or TAKE_PROFIT
+        :param order:
         """
-        # # if order[side] == sell don't need calculate quantity
-        # if side == 'BUY':
-        #     quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
-        # else:
-        #     quantity = quantityPart
-
-        quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
-        print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
-              + str(self.get_balance_coin_by_symbol(symbol)) +
-              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
+        quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
+        print('Slave ' + str(self.get_balance_market_by_symbol(order.symbol)) + ' '
+              + str(self.get_balance_coin_by_symbol(order.symbol)) +
+              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
-            if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
-                                             price=price,
+            if order.type == 'STOP_LOSS_LIMIT' or order.type == "TAKE_PROFIT_LIMIT":
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
+                                             price=order.price,
                                              quantity=quantity,
-                                             timeInForce=timeInForce,
-                                             stopPrice=stopPrice)
+                                             timeInForce='GTC',
+                                             stopPrice=order.stopPrice)
             if (type == 'MARKET'):
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
                                              quantity=quantity)
             else:
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
                                              quantity=quantity,
-                                             price=price,
-                                             timeInForce=timeInForce)
+                                             price=order.price,
+                                             timeInForce='GTC')
             print("order created")
         except Exception as e:
             print(str(e))
 
-    async def async_create_order(self, symbol, side, type, price, quantityPart, stop=0):
-        self.create_order(symbol, side, type, price, quantityPart, stopPrice=stop)
+    def get_balance_market_by_symbol(self, symbol):
+        return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
+
+    def get_balance_coin_by_symbol(self, symbol):
+        return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
+
+    def get_part(self, symbol, quantity, price, side):
+        # get part of the total balance of this coin
+
+        # if order[side] == sell: need obtain coin balance
+        if side == 'BUY':
+            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
+            part = float(quantity) * float(price) / balance
+        else:
+            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            part = float(quantity) / balance
+
+        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
+        return part
+
+    def calc_quantity_from_part(self, symbol, quantityPart, price, side):
+        # calculate quantity from quantityPart
+
+        # if order[side] == sell: need obtain coin balance
+        if side == 'BUY':
+            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
+            quantity = float(quantityPart) * float(cur_bal) / float(price)
+        else:
+            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            quantity = quantityPart * cur_bal
+
+        quantity = round(quantity, 6)
+        return quantity
