@@ -16,28 +16,21 @@ class SlaveContainer:
 
         self.master = factory_method_create_exchange(config['master'], pairs)
 
-        # single_config = config['master']
-        # exchange_name = single_config['exchange_name']
-        # necessary_class = globals()[exchange_name]
-        # self.master = necessary_class(config['master']['key'], config['master']['secret'], pairs)
-
         slaves = []
         for slave_config in config['slaves']:
             slave = factory_method_create_exchange(slave_config, pairs)
-
-            # slave = necessary_class(slave_config['key'], slave_config['secret'], pairs)
             slaves.append(slave)
         self.slaves = slaves
 
     def start(self):
-        self.master.start(self.on_order_caller)
+        self.master.start(self.on_event_handler)
 
     def stop(self):
         self.master.stop()
         for slave in self.slaves:
             slave.stop()
 
-    def on_order_caller(self, event):
+    def on_event_handler(self, event):
         # callback for event new order
         print(event)
 
@@ -46,8 +39,12 @@ class SlaveContainer:
         if p_event is None:
             return
 
-        for slave in self.slaves:
-            asyncio.run(slave.on_order_handler(p_event))
+        if p_event['action'] == "cancel":
+            for slave in self.slaves:
+                asyncio.run(slave.on_cancel_handler(p_event))
+        elif p_event['action'] == "new_order":
+            for slave in self.slaves:
+                asyncio.run(slave.on_order_handler(p_event))
 
     def first_copy(self, orders):
         # copy open orders from master account to slaves

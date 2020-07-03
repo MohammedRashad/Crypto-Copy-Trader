@@ -47,9 +47,13 @@ class BinanceExchange(Exchange):
                       self.exchange_name))
         return general_orders
 
-    def cancel_order(self, orderId, symbol):
+    def _cancel_order(self, orderId, symbol):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
         print('order canceled')
+
+    async def on_cancel_handler(self, event):
+        slave_order_id = self._cancel_order_detector(event['price'])
+        self._cancel_order(slave_order_id, event['symbol'])
 
     def stop(self):
         self.socket.close()
@@ -62,6 +66,7 @@ class BinanceExchange(Exchange):
                 return ordr_open['orderId']
 
     def process_event(self, event):
+        # return event in generic type from websocket
 
         if event['e'] == 'outboundAccountPosition':
             self.is_last_order_event_completed = True
@@ -97,6 +102,7 @@ class BinanceExchange(Exchange):
 
             self.on_balance_update(event)
 
+            # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
             order = Order(order_event['p'],
                           order_event['q'],
                           self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S']),
@@ -114,21 +120,15 @@ class BinanceExchange(Exchange):
             }
 
     async def on_order_handler(self, event):
-        # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
-
-        if event['action'] == 'cancel':
-            slave_order_id = self._cancel_order_detector(event['price'])
-            self.cancel_order(slave_order_id, event['symbol'])
-        elif event['action'] == 'new_order':
-            self.create_order(event['order'])
+        self.create_order(event['order'])
 
     def create_order(self, order):
         """
         :param order:
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
-        print('Slave ' + str(self.get_balance_market_by_symbol(order.symbol)) + ' '
-              + str(self.get_balance_coin_by_symbol(order.symbol)) +
+        print('Slave ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
+              + str(self._get_balance_coin_by_symbol(order.symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
             if order.type == 'STOP_LOSS_LIMIT' or order.type == "TAKE_PROFIT_LIMIT":
@@ -155,10 +155,10 @@ class BinanceExchange(Exchange):
         except Exception as e:
             print(str(e))
 
-    def get_balance_market_by_symbol(self, symbol):
+    def _get_balance_market_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
 
-    def get_balance_coin_by_symbol(self, symbol):
+    def _get_balance_coin_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
 
     def get_part(self, symbol, quantity, price, side):
@@ -166,10 +166,10 @@ class BinanceExchange(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
+            balance = float(self._get_balance_market_by_symbol(symbol)['free'])
             part = float(quantity) * float(price) / balance
         else:
-            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            balance = float(self._get_balance_coin_by_symbol(symbol)['free'])
             part = float(quantity) / balance
 
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
@@ -180,10 +180,10 @@ class BinanceExchange(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
+            cur_bal = float(self._get_balance_market_by_symbol(symbol)['free'])
             quantity = float(quantityPart) * float(cur_bal) / float(price)
         else:
-            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            cur_bal = float(self._get_balance_coin_by_symbol(symbol)['free'])
             quantity = quantityPart * cur_bal
 
         quantity = round(quantity, 6)

@@ -44,7 +44,7 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    def cancel_order(self, orderId, symbol):
+    async def on_cancel_handler(self, event):
         pass
 
     @abstractmethod
