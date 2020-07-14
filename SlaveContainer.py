@@ -7,8 +7,7 @@ from ExchangeInterfaces.Exchange import Exchange
 def factory_method_create_exchange(single_config, pairs) -> Exchange:
     exchange_name = single_config['exchange_name']
     necessary_class = globals()[exchange_name]
-    necessary_object = necessary_class(single_config['key'], single_config['secret'], pairs)
-    return necessary_object
+    return necessary_class(single_config['key'], single_config['secret'], pairs)
 
 
 class SlaveContainer:
@@ -19,7 +18,11 @@ class SlaveContainer:
         slaves = []
         for slave_config in config['slaves']:
             slave = factory_method_create_exchange(slave_config, pairs)
-            slaves.append(slave)
+            if self.master.isMargin == slave.isMargin:
+                slaves.append(slave)
+            else:
+                slave.stop()
+                del slave
         self.slaves = slaves
 
     def start(self):
@@ -45,6 +48,9 @@ class SlaveContainer:
         elif p_event['action'] == "new_order":
             for slave in self.slaves:
                 asyncio.run(slave.on_order_handler(p_event))
+        elif p_event['action'] == "close_position":
+            for slave in self.slaves:
+                asyncio.run(slave.close_position(p_event['symbol']))
 
     def first_copy(self, orders):
         # copy open orders from master account to slaves

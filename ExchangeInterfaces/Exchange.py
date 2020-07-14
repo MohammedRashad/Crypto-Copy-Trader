@@ -5,6 +5,8 @@ class Exchange(ABC):
     balance = None
     exchange_name = None
     master_balance = None
+    isMargin = None
+    expected_orders = list()
 
     def __init__(self, apiKey, apiSecret, pairs, ):
         self.api = {'key': apiKey,
@@ -61,3 +63,15 @@ class Exchange(ABC):
     @abstractmethod
     def calc_quantity_from_part(self, symbol, quantityPart, price, side):
         pass
+
+    def add_expected_order_id(self, id, callback):
+        self.expected_orders.append({'id': id,
+                                     'callback': callback})
+
+    def check_expected_order(self, order):
+        for expected_order in self.expected_orders:
+            if order.id == expected_order['id']:
+                expected_order['callback'](order)
+
+    async def close_position(self, symbol):
+        print(f" exchange {self.exchange_name} do not support event \' close_position \' ")

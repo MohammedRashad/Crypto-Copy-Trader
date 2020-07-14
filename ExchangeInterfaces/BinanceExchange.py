@@ -5,10 +5,12 @@ from Helpers import Order
 
 
 class BinanceExchange(Exchange):
+    exchange_name = "Binance"
+    isMargin = False
 
     def __init__(self, apiKey, apiSecret, pairs):
         super().__init__(apiKey, apiSecret, pairs)
-        self.exchange_name = "Binance"
+
         self.connection = Client(self.api['key'], self.api['secret'])
         self.update_balance()
         self.socket = BinanceSocketManager(self.connection)
@@ -62,7 +64,7 @@ class BinanceExchange(Exchange):
         # detect order id which need to be canceled
         slave_open_orders = self.connection.get_open_orders()
         for ordr_open in slave_open_orders:
-            if ordr_open['price'] == price:
+            if float(ordr_open['price']) == float(price):
                 return ordr_open['orderId']
 
     def process_event(self, event):
@@ -138,7 +140,7 @@ class BinanceExchange(Exchange):
                                              price=order.price,
                                              quantity=quantity,
                                              timeInForce='GTC',
-                                             stopPrice=order.stopPrice)
+                                             stopPrice=order.stop)
             if (type == 'MARKET'):
                 self.connection.create_order(symbol=order.symbol,
                                              side=order.side,
