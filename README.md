@@ -16,6 +16,9 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Built with bootstrap
 - Market orders support
 
+# TO DO
+- Binance Futures 
+
 # Known Bugs
 - Currently Nothing
 
