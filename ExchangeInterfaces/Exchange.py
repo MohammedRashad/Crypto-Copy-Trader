@@ -1,7 +1,12 @@
-class Exchange:
+from abc import ABC, abstractmethod
+
+
+class Exchange(ABC):
     balance = None
     exchange_name = None
     master_balance = None
+    isMargin = None
+    expected_orders = list()
 
     def __init__(self, apiKey, apiSecret, pairs, ):
         self.api = {'key': apiKey,
@@ -10,7 +15,7 @@ class Exchange:
         self.pairs = list(map(lambda pair: pair.replace('\n', ''), pairs))
 
     def get_balance(self):
-        pass
+        return self.balance
 
     def get_trading_symbols(self):
         symbols = set()
@@ -20,47 +25,53 @@ class Exchange:
             symbols.add(pair[3:])
         return symbols
 
+    @abstractmethod
+    def stop(self):
+        pass
+
+    @abstractmethod
+    def start(self, caller_callback):
+        pass
+
+    @abstractmethod
+    def process_event(self, event):
+        pass
+
+    @abstractmethod
+    def on_order_handler(self, event):
+        pass
+
+    @abstractmethod
     def get_open_orders(self):
         pass
 
-    def cancel_order(self, symbol, orderId):
+    @abstractmethod
+    async def on_cancel_handler(self, event):
         pass
 
-    def create_order(self, symbol, side, type, price, quantity):
+    @abstractmethod
+    def create_order(self, order):
         pass
 
-    def get_balance_market_by_symbol(self, symbol):
-        return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
+    async def async_create_order(self, order):
+        self.create_order(order)
 
-    def get_balance_coin_by_symbol(self, symbol):
-        return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
+    @abstractmethod
+    def get_part(self, symbol, quantity, price):
+        pass
 
-    def get_part(self, symbol, quantity, price, side):
-        # get part of the total balance of this coin
-
-        # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
-            part = float(quantity)*float(price)/balance
-        else:
-            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
-            part = float(quantity)/balance
-
-        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
-        return part
-
+    @abstractmethod
     def calc_quantity_from_part(self, symbol, quantityPart, price, side):
-        # calculate quantity from quantityPart
+        pass
 
-        # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
-            quantity = float(quantityPart) * float(cur_bal) / float(price)
-        else:
-            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
-            quantity = quantityPart*cur_bal
+    def add_expected_order_id(self, id, callback):
+        self.expected_orders.append({'id': id,
+                                     'callback': callback})
 
-        # balanceIndex = [idx for idx, element in enumerate(self.get_balance()) if element['asset'] == str(symbol)[3:]][0]
-        # cur_bal = float(self.get_balance()[balanceIndex]['free'])
-        quantity = round(quantity, 6)
-        return quantity
+    def check_expected_order(self, order):
+        for expected_order in self.expected_orders:
+            if order.id == expected_order['id']:
+                expected_order['callback'](order)
+
+    async def close_position(self, symbol):
+        print(f" exchange {self.exchange_name} do not support event \' close_position \' ")

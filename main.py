@@ -7,7 +7,8 @@ import json
 import pprint
 from deepdiff import DeepDiff
 import time
-from ExchangeInterfaces.BinanceExchange import BinanceExchage
+from ExchangeInterfaces.BinanceExchange import BinanceExchange
+from SlaveContainer import SlaveContainer
 
 import numpy as np
 # import pandas as pd
@@ -83,7 +84,7 @@ def order_cancel_checker(i_orders, i_old_orders, i_slaves):
                 for order in i_old_orders:
                     if ((ordr_open['price'] == order['price']) and (ordr_open['symbol'] == order['symbol'])) and not (
                             order in i_orders):
-                        slave.cancel_order(symbol=ordr_open['symbol'], orderId=ordr_open['orderId'])
+                        slave._cancel_order(orderId=ordr_open['orderId'], symbol=ordr_open['symbol'])
 
 
 def server_begin():
@@ -91,42 +92,29 @@ def server_begin():
     ## -- Server Preparation
     ############################################
     print('Application started...')
-    config = reader(open("config_files/config.csv"))
-    data = [i for i in config]
+    with open('./config_files/config.json', 'r') as config_f:
+        config = json.load(config_f)
+
     print('Reading configuration file...')
-    slaves = len(data[0])
-    print(slaves, ' Slave accounts detected')
-
-    ## read master keys
-    master_api_key = data[0][1]
-    master_api_secret = data[1][1]
-    count = 1
-    slave_api = []
-    order_mapping = []
-
-    ## read slave keys
-    while count < slaves:
-        slave_api.append([data[2][count], data[3][count]])
-        order_mapping.append({})
-        count += 1
+    print(len(config['slaves']), ' Slave accounts detected')
 
     file = open('config_files/symbols.csv', "r")
     symbols = file.readlines()
 
-    client = BinanceExchage(master_api_key, master_api_secret, symbols)
+    slave_container = SlaveContainer(config, symbols)
+
+    client = slave_container.master
 
     print('')
     print('Get Master Orders...')
     orders = client.get_open_orders()
-    pprint.pprint(orders)
+    pprint.pprint(str(orders))
     print('Opening Slave Accounts...')
 
-    master_balance = client.get_balance()
+    slaves = slave_container.slaves
     slave_number = 0
-    slaves = []
-    for i in slave_api:
-        slave_binance = BinanceExchage(apiKey=i[0], apiSecret=i[1], pairs=symbols)
-        slave_open_orders = slave_binance.get_open_orders()
+    for slave in slaves:
+        slave_open_orders = slave.get_open_orders()
         print('')
         print('Opening Slave Account #' + str(slave_number) + ' ...')
         print('')
@@ -135,17 +123,16 @@ def server_begin():
         pprint.pprint(slave_open_orders)
         slave_number += 1
         print('')
-        slaves.append(slave_binance)
 
-    print('Will start copying from now...please place a new order on Binance')
+    print('Will start copying from now...please place a new order')
     print('')
 
-    # orders = client.get_open_orders()
     print('Open Master Orders are ' + str(len(orders)) + ' ...')
 
-    old_orders = copy_trade(orders, slaves, client=client)
+    slave_container.first_copy(orders)
+    #old_orders = copy_trade(orders, slaves, client=client)
 
-    return client, slaves, old_orders
+    return slave_container
 
 
 def looping_engine(client, slaves, old_orders):
