@@ -15,6 +15,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
 - Ratio for not similar accounts 
 - Built with bootstrap
 - Market orders support
+- Bittrex Platform (still under testing) 
 
 # TO DO
 - Binance Futures 
