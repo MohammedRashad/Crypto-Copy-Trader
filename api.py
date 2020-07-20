@@ -35,7 +35,7 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
 
 def socket_function(container):
     print("Using web socket")
-    container.start()
+    # container.start()
     # set variable for stop socket
     set_stop_run.container = container
     global socket_usage

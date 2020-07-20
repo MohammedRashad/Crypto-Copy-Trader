@@ -102,35 +102,35 @@ def server_begin():
     symbols = file.readlines()
 
     slave_container = SlaveContainer(config, symbols)
-
-    client = slave_container.master
-
-    print('')
-    print('Get Master Orders...')
-    orders = client.get_open_orders()
-    pprint.pprint(str(orders))
-    print('Opening Slave Accounts...')
-
-    slaves = slave_container.slaves
-    slave_number = 0
-    for slave in slaves:
-        slave_open_orders = slave.get_open_orders()
-        print('')
-        print('Opening Slave Account #' + str(slave_number) + ' ...')
-        print('')
-        print('Get Slave Orders...')
-
-        pprint.pprint(slave_open_orders)
-        slave_number += 1
-        print('')
-
+    slave_container.start()
+    # client = slave_container.master
+    #
+    # print('')
+    # print('Get Master Orders...')
+    # orders = client.get_open_orders()
+    # pprint.pprint(str(orders))
+    # print('Opening Slave Accounts...')
+    #
+    # slaves = slave_container.slaves
+    # slave_number = 0
+    # for slave in slaves:
+    #     slave_open_orders = slave.get_open_orders()
+    #     print('')
+    #     print('Opening Slave Account #' + str(slave_number) + ' ...')
+    #     print('')
+    #     print('Get Slave Orders...')
+    #
+    #     pprint.pprint(slave_open_orders)
+    #     slave_number += 1
+    #     print('')
+    #
     print('Will start copying from now...please place a new order')
-    print('')
-
-    print('Open Master Orders are ' + str(len(orders)) + ' ...')
-
-    slave_container.first_copy(orders)
-    #old_orders = copy_trade(orders, slaves, client=client)
+    # print('')
+    #
+    # print('Open Master Orders are ' + str(len(orders)) + ' ...')
+    #
+    # slave_container.first_copy(orders)
+    # #old_orders = copy_trade(orders, slaves, client=client)
 
     return slave_container
 

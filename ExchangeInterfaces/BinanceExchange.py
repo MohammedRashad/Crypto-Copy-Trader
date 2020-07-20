@@ -18,6 +18,7 @@ class BinanceExchange(Exchange):
         self.socket.start()
         self.is_last_order_event_completed = True
 
+
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
 
@@ -80,6 +81,7 @@ class BinanceExchange(Exchange):
                 return {'action': 'cancel',
                         'symbol': event['s'],
                         'price': event['p'],
+                        'id': event['i'],
                         'exchange': self.exchange_name,
                         'original_event': event
                         }

@@ -24,9 +24,13 @@ class SlaveContainer:
                 slave.stop()
                 del slave
         self.slaves = slaves
+        #self.start()
 
     def start(self):
         self.master.start(self.on_event_handler)
+        # def pass_callback(): return None
+        # for slave in self.slaves:
+        #     slave.start(pass_callback)
 
     def stop(self):
         self.master.stop()
@@ -50,7 +54,9 @@ class SlaveContainer:
                 asyncio.run(slave.on_order_handler(p_event))
         elif p_event['action'] == "close_position":
             for slave in self.slaves:
-                asyncio.run(slave.close_position(p_event['symbol']))
+                asyncio.run(slave.close_position(p_event))
+        elif p_event['action'] == "first_copy":
+            self.first_copy(self.master.get_open_orders())
 
     def first_copy(self, orders):
         # copy open orders from master account to slaves

@@ -8,6 +8,8 @@ class Exchange(ABC):
     isMargin = None
     expected_orders = list()
 
+    ids = [] # store here  order which was created by program
+
     def __init__(self, apiKey, apiSecret, pairs, ):
         self.api = {'key': apiKey,
                     'secret': apiSecret}
@@ -16,6 +18,8 @@ class Exchange(ABC):
 
     def get_balance(self):
         return self.balance
+
+    # def make_relation(self, id):
 
     def get_trading_symbols(self):
         symbols = set()
@@ -73,5 +77,10 @@ class Exchange(ABC):
             if order.id == expected_order['id']:
                 expected_order['callback'](order)
 
-    async def close_position(self, symbol):
+    async def close_position(self, event):
         print(f" exchange {self.exchange_name} do not support event \' close_position \' ")
+
+    def is_program_order(self, id) -> bool:
+        if id in self.ids:
+            return True
+        return False
