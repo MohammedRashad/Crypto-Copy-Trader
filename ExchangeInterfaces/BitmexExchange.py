@@ -1,3 +1,5 @@
+import threading
+
 from .Exchange import Exchange
 from bitmex_websocket import BitMEXWebsocket
 from websocket import create_connection
@@ -18,7 +20,8 @@ class BitmexExchange(Exchange):
     isMargin = True
 
     def __init__(self, apiKey, apiSecret, pairs):
-        pairs = self._pairs_transform_self(pairs)
+
+        pairs = map(lambda pair: self.translate(pair), pairs)
         super().__init__(apiKey, apiSecret, pairs)
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
         self.update_balance()
@@ -32,14 +35,8 @@ class BitmexExchange(Exchange):
                                       api_key=self.api['key'],
                                       api_secret=self.api['secret'], on_order_calback=caller_callback)
 
-        # pause system (temp solution)
-        if platform.system() == "Windows":
-            os.system("pause")
-        elif platform.system() == "Linux":
-            os.system('read -sn 1 -p "Press any key to continue..."')
-
     def stop(self):
-        pass
+        self.socket.exit()
 
     def update_balance(self):
         response = self.connection.User.User_getMargin().result()
@@ -104,10 +101,6 @@ class BitmexExchange(Exchange):
                                 'original_event': event
                                 }
 
-                    # positions = self.connection.Position.Position_get(filter=str("{\"symbol\": \""
-                    # + event['data'][0]['symbol'] + "\"} ")).result()
-                    # quantity = positions['openingQty']
-                    # side = positions['']
                 elif event['data'][0]['ordType'] == 'Market' or event['data'][0]['ordType'] == 'Stop':
                     event['data'][0]['price'] = self.socket.get_instrument()['midPrice']
                 order = self._self_order_to_global(event['data'][0])
@@ -163,7 +156,7 @@ class BitmexExchange(Exchange):
         return Order(o['price'], o["orderQty"],
                      self.get_part(o['symbol'], o["orderQty"], o['price']),
                      o['orderID'],
-                     self._self_pair_to_general(o['symbol']),
+                     self.translate(o['symbol']),
                      o['side'].upper(),
                      self.translate(o['ordType']),
                      self.exchange_name,
@@ -221,17 +214,6 @@ class BitmexExchange(Exchange):
                                                    execInst='Close',
                                                    clOrdID=event['id']).result()
 
-    def _pairs_transform_self(self, pairs):
-        new_pairs = []
-        for pair in pairs:
-            if pair.strip() in self.translate_dict.keys():
-                new_pairs.append(self.translate_dict[pair.strip()])
-        return new_pairs
-
-    def _self_pair_to_general(self, pair):
-        reverse_dict = dict(zip(self.translate_dict.values(), self.translate_dict.keys()))
-        return reverse_dict[pair]
-
     translate_dict = {
         'BTCUSDT': 'XBTUSD',
         'ETHUSDT': 'ETHUSD',
@@ -245,10 +227,11 @@ class BitmexExchange(Exchange):
         # 'XRPUSDT': 'XRPUSD'
     }
 
-    def translate(self, word) -> str:
-        translate_dict = self.translate_dict
+    @staticmethod
+    def translate( word) -> str:
+        translate_dict = BitmexExchange.translate_dict
         if not word in translate_dict:
-            translate_dict = dict(zip(translate_dict.values(), self.translate_dict.keys()))
+            translate_dict = dict(zip(BitmexExchange.translate_dict.values(), BitmexExchange.translate_dict.keys()))
             if not word in translate_dict:
                 return word
         return translate_dict[word]

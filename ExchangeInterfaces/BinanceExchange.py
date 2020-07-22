@@ -18,9 +18,13 @@ class BinanceExchange(Exchange):
         self.socket.start()
         self.is_last_order_event_completed = True
 
-
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
+        copy_event = {'action': 'first_copy',
+                      'exchange': self.exchange_name,
+                      'original_event': None
+                      }
+        caller_callback(copy_event)
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -70,6 +74,10 @@ class BinanceExchange(Exchange):
 
     def process_event(self, event):
         # return event in generic type from websocket
+
+        # if this event in general type it was send from start function and need call firs_copy
+        if 'exchange' in event:
+            return event
 
         if event['e'] == 'outboundAccountPosition':
             self.is_last_order_event_completed = True
@@ -123,6 +131,8 @@ class BinanceExchange(Exchange):
                 'original_event': event
             }
 
+
+
     async def on_order_handler(self, event):
         self.create_order(event['order'])
 
@@ -165,12 +175,12 @@ class BinanceExchange(Exchange):
     def _get_balance_coin_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
 
-    def get_part(self, symbol, quantity, price, side):
+    def get_part(self, symbol: str, quantity: float, price: float, side: str):
         # get part of the total balance of this coin
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            balance = float(self._get_balance_market_by_symbol(symbol)['free'])
+            balance = float(self._get_balance_market_by_symbol(symbol)['free']) + float(float(price) * float(quantity))
             part = float(quantity) * float(price) / balance
         else:
             balance = float(self._get_balance_coin_by_symbol(symbol)['free'])

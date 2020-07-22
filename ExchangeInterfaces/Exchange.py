@@ -8,7 +8,7 @@ class Exchange(ABC):
     isMargin = None
     expected_orders = list()
 
-    ids = [] # store here  order which was created by program
+    ids = []  # store here  order which was created by program
 
     def __init__(self, apiKey, apiSecret, pairs, ):
         self.api = {'key': apiKey,
@@ -61,11 +61,11 @@ class Exchange(ABC):
         self.create_order(order)
 
     @abstractmethod
-    def get_part(self, symbol, quantity, price):
+    def get_part(self, symbol: str, quantity: float, price: float) -> float:
         pass
 
     @abstractmethod
-    def calc_quantity_from_part(self, symbol, quantityPart, price, side):
+    def calc_quantity_from_part(self, symbol: str, quantityPart: float, price: float, side:str):
         pass
 
     def add_expected_order_id(self, id, callback):
@@ -80,7 +80,10 @@ class Exchange(ABC):
     async def close_position(self, event):
         print(f" exchange {self.exchange_name} do not support event \' close_position \' ")
 
-    def is_program_order(self, id) -> bool:
-        if id in self.ids:
+    def is_program_order(self, _id) -> bool:
+        if _id in self.ids:
             return True
         return False
+
+    def delete_id(self, _id):
+        self.ids.remove(_id)

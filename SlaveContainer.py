@@ -24,13 +24,10 @@ class SlaveContainer:
                 slave.stop()
                 del slave
         self.slaves = slaves
-        #self.start()
+        # self.start()
 
     def start(self):
         self.master.start(self.on_event_handler)
-        # def pass_callback(): return None
-        # for slave in self.slaves:
-        #     slave.start(pass_callback)
 
     def stop(self):
         self.master.stop()
@@ -46,22 +43,34 @@ class SlaveContainer:
         if p_event is None:
             return
 
-        if p_event['action'] == "cancel":
+        action = p_event['action']
+        if action == "cancel":
             for slave in self.slaves:
                 asyncio.run(slave.on_cancel_handler(p_event))
-        elif p_event['action'] == "new_order":
+        elif action == "new_order":
             for slave in self.slaves:
                 asyncio.run(slave.on_order_handler(p_event))
-        elif p_event['action'] == "close_position":
+        elif action == "close_position":
             for slave in self.slaves:
                 asyncio.run(slave.close_position(p_event))
-        elif p_event['action'] == "first_copy":
+        elif action == "first_copy":
             self.first_copy(self.master.get_open_orders())
+
+        # store order_id of master order to relate it with slave order
+        if action == "new_order":
+            for slave in self.slaves:
+                slave.ids.append(p_event['order'].id)
+
+        # delete already not existed order ids to avoid memory leak
+        if action == "close_position" or action == "cancel":
+            ord_id = p_event['id']
+            for slave in self.slaves:
+                if slave.is_program_order(ord_id):
+                    slave.delete_id(ord_id)
 
     def first_copy(self, orders):
         # copy open orders from master account to slaves
 
-        # orders = self.master.get_open_orders()
         for slave in self.slaves:
             for o in orders:
                 asyncio.run(slave.async_create_order(o))

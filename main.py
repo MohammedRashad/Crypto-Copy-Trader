@@ -102,7 +102,7 @@ def server_begin():
     symbols = file.readlines()
 
     slave_container = SlaveContainer(config, symbols)
-    slave_container.start()
+    # slave_container.start()
     # client = slave_container.master
     #
     # print('')
