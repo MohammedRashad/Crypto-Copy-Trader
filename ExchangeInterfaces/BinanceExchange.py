@@ -153,7 +153,7 @@ class BinanceExchange(Exchange):
                                              quantity=quantity,
                                              timeInForce='GTC',
                                              stopPrice=order.stop)
-            if (type == 'MARKET'):
+            if order.type == 'MARKET':
                 self.connection.create_order(symbol=order.symbol,
                                              side=order.side,
                                              type=order.type,
@@ -183,7 +183,7 @@ class BinanceExchange(Exchange):
             balance = float(self._get_balance_market_by_symbol(symbol)['free']) + float(float(price) * float(quantity))
             part = float(quantity) * float(price) / balance
         else:
-            balance = float(self._get_balance_coin_by_symbol(symbol)['free'])
+            balance = float(self._get_balance_coin_by_symbol(symbol)['free']) + float(quantity)
             part = float(quantity) / balance
 
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
