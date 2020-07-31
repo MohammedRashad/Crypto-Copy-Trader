@@ -7,7 +7,7 @@ from ExchangeInterfaces.Exchange import Exchange
 def factory_method_create_exchange(single_config, pairs) -> Exchange:
     exchange_name = single_config['exchange_name']
     necessary_class = globals()[exchange_name]
-    return necessary_class(single_config['key'], single_config['secret'], pairs)
+    return necessary_class(single_config['key'], single_config['secret'], pairs, single_config['name'])
 
 
 class SlaveContainer:

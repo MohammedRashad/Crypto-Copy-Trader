@@ -19,28 +19,37 @@ class BitmexExchange(Exchange):
     exchange_name = "Bitmex"
     isMargin = True
 
-    def __init__(self, apiKey, apiSecret, pairs):
+    def __init__(self, apiKey, apiSecret, pairs, name):
 
         pairs = map(lambda pair: self.translate(pair), pairs)
-        super().__init__(apiKey, apiSecret, pairs)
+        super().__init__(apiKey, apiSecret, pairs, name)
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
-        self.update_balance()
         self.socket = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD",
                                       api_key=self.api['key'],
-                                      api_secret=self.api['secret'])
+                                      api_secret=self.api['secret'], on_balance_update=self.on_balance_update)
+
 
     def start(self, caller_callback):
         self.socket.exit()
         self.socket = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol="XBTUSD",
                                       api_key=self.api['key'],
-                                      api_secret=self.api['secret'], on_order_calback=caller_callback)
+                                      api_secret=self.api['secret'], on_order_calback=caller_callback,
+                                      on_balance_update=self.on_balance_update)
 
     def stop(self):
         self.socket.exit()
 
+    def on_balance_update(self, event):
+        if 'availableMargin' in event:
+            self.balance = event['availableMargin']
+            print(f"{self.name} Balance Updated: {event['availableMargin']}")
+
     def update_balance(self):
-        response = self.connection.User.User_getMargin().result()
-        self.balance = response[0]['availableMargin']
+        self.balance = self.socket.funds()['availableMargin']
+
+        # using rest api
+        # response = self.connection.User.User_getMargin().result()
+        # self.balance = response[0]['availableMargin']
 
     def get_open_orders(self):
         if not self.socket:
@@ -56,7 +65,7 @@ class BitmexExchange(Exchange):
     def get_part(self, symbol, quantity, price):
         btc = float(quantity) / float(price)
         btc_satoshi = btc * (10 ** 8)
-        part = float(btc_satoshi) / (float(self.get_balance()) + float(btc_satoshi))
+        part = float(btc_satoshi) / float(self.get_balance())
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
 
@@ -67,6 +76,7 @@ class BitmexExchange(Exchange):
         return amount_usd
 
     def process_event(self, event):
+        self.update_balance()
 
         if event['action'] == "insert":
 
@@ -127,6 +137,9 @@ class BitmexExchange(Exchange):
                         'original_event': event
                         }
         elif event['action'] == 'partial':
+            # # change balance by manually because on_balance_update working after order event came
+            balance = self.connection.User.User_getMargin().result()[0]
+            self.balance = balance['availableMargin'] + balance['initMargin']
             return {'action': 'first_copy',
                     'exchange': self.exchange_name,
                     'original_event': event
@@ -199,7 +212,7 @@ class BitmexExchange(Exchange):
                                                         ordType=self.translate(order.type),
                                                         timeInForce='GoodTillCancel'
                                                         )
-        print('order created:', new_order.result())
+        print(f'order created: {new_order.result()} ')
 
     async def close_position(self, event):
         print(f'close_position {event["symbol"]}')
@@ -228,7 +241,7 @@ class BitmexExchange(Exchange):
     }
 
     @staticmethod
-    def translate( word) -> str:
+    def translate(word) -> str:
         translate_dict = BitmexExchange.translate_dict
         if not word in translate_dict:
             translate_dict = dict(zip(BitmexExchange.translate_dict.values(), BitmexExchange.translate_dict.keys()))

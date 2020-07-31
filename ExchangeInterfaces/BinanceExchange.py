@@ -8,8 +8,8 @@ class BinanceExchange(Exchange):
     exchange_name = "Binance"
     isMargin = False
 
-    def __init__(self, apiKey, apiSecret, pairs):
-        super().__init__(apiKey, apiSecret, pairs)
+    def __init__(self, apiKey, apiSecret, pairs, name):
+        super().__init__(apiKey, apiSecret, pairs, name)
 
         self.connection = Client(self.api['key'], self.api['secret'])
         self.update_balance()
@@ -130,8 +130,6 @@ class BinanceExchange(Exchange):
                 'exchange': self.exchange_name,
                 'original_event': event
             }
-
-
 
     async def on_order_handler(self, event):
         self.create_order(event['order'])

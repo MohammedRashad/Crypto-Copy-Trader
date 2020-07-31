@@ -2,19 +2,18 @@ from abc import ABC, abstractmethod
 
 
 class Exchange(ABC):
-    balance = None
     exchange_name = None
-    master_balance = None
     isMargin = None
-    expected_orders = list()
 
-    ids = []  # store here  order which was created by program
-
-    def __init__(self, apiKey, apiSecret, pairs, ):
+    def __init__(self, apiKey, apiSecret, pairs, name):
         self.api = {'key': apiKey,
                     'secret': apiSecret}
         # delete '\n' from symbols'
         self.pairs = list(map(lambda pair: pair.replace('\n', ''), pairs))
+        self.name = name
+        self.balance = None
+        self.expected_orders = list()
+        self.ids = []  # store here order which was created by program
 
     def get_balance(self):
         return self.balance
