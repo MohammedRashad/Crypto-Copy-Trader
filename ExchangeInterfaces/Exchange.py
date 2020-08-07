@@ -8,11 +8,12 @@ class Exchange(ABC):
     isMargin = None
     expected_orders = list()
 
-    def __init__(self, apiKey, apiSecret, pairs, ):
+    def __init__(self, apiKey, apiSecret, pairs, name="Unnamed"):
         self.api = {'key': apiKey,
                     'secret': apiSecret}
         # delete '\n' from symbols'
         self.pairs = list(map(lambda pair: pair.replace('\n', ''), pairs))
+        self.name = name
 
     def get_balance(self):
         return self.balance
