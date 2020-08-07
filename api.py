@@ -33,13 +33,16 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
         print("time elasped in thread" + Thread_num + " = " + str(end - start_time) + " sec")
 
 
-def socket_function(container):
+def socket_function(container: SlaveContainer):
     print("Using web socket")
-        # set variable for stop socket
+    # first_copy
+    container.start()
+    container.first_copy(container.master.get_open_orders())
+    # set variable for stop socket
     set_stop_run.container = container
     global socket_usage
     socket_usage = True
-    container.start()
+
 
 
 def manual_run():

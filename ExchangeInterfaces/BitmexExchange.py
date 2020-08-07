@@ -21,34 +21,47 @@ class BitmexExchange(Exchange):
 
     def __init__(self, apiKey, apiSecret, pairs, name):
 
-
         super().__init__(apiKey, apiSecret, pairs, name)
-        self.pairs = list(map(lambda pair: self.translate(pair) if  pair != self.translate(pair)
-                                        else print(f"Can't translate word {pair} in {BitmexExchange.exchange_name}"), self.pairs))
+        self.pairs = list(map(lambda pair: self.translate(pair) if pair != self.translate(pair)
+        else print(f"Can't translate word {pair} in {BitmexExchange.exchange_name}"), self.pairs))
         self.pairs = list(filter(None, self.pairs))
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
         self.socket = {}
+        # self.firts_copy_flag = True
+        self.balance_updated = False
+
+        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol='XBTUSD',
+                                                api_key=self.api['key'],
+                                                api_secret=self.api['secret'], on_balance_update=self.on_balance_update)
         for pair in self.pairs:
+            if pair == 'XBTUSD':
+                continue
             self.socket[pair] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=pair,
-                                               api_key=self.api['key'],
-                                               api_secret=self.api['secret'], on_balance_update=self.on_balance_update)
-
-
+                                                api_key=self.api['key'],
+                                                api_secret=self.api['secret']
+                                                )
     def start(self, caller_callback):
         self.stop()
+        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol='XBTUSD',
+                                                api_key=self.api['key'],
+                                                api_secret=self.api['secret'], on_balance_update=self.on_balance_update,
+                                                on_order_calback=caller_callback)
         for pair in self.pairs:
-                self.socket[pair] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=pair,
-                                      api_key=self.api['key'],
-                                      api_secret=self.api['secret'], on_order_calback=caller_callback,
-                                      on_balance_update=self.on_balance_update)
+            if pair == 'XBTUSD':
+                continue
+            self.socket[pair] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=pair,
+                                                api_key=self.api['key'],
+                                                api_secret=self.api['secret'], on_order_calback=caller_callback,
+                                                )
 
     def stop(self):
-        for pair in self.pairs:
-            self.socket[pair].exit()
+        for socket in self.socket:
+            self.socket[socket].exit()
 
     def on_balance_update(self, event):
         if 'availableMargin' in event:
             self.balance = event['availableMargin']
+            self.balance_updated = True
             print(f"{self.name} Balance Updated: {event['availableMargin']}")
 
     def update_balance(self):
@@ -75,7 +88,12 @@ class BitmexExchange(Exchange):
     def get_part(self, symbol, quantity, price):
         btc = float(quantity) / float(price)
         btc_satoshi = btc * (10 ** 8)
-        part = float(btc_satoshi) / float(self.get_balance())
+
+        balance = self.get_balance()
+        if self.balance_updated:
+            part = float(btc_satoshi) / float(balance + (float(price) * float(quantity)))
+        else:
+            part = float(btc_satoshi) / float(balance)
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
 
@@ -86,7 +104,8 @@ class BitmexExchange(Exchange):
         return amount_usd
 
     def process_event(self, event):
-        self.update_balance()
+        # self.update_balance()
+        self.balance_updated = False
 
         if event['action'] == "insert":
 
@@ -146,14 +165,14 @@ class BitmexExchange(Exchange):
                         'exchange': self.exchange_name,
                         'original_event': event
                         }
-        elif event['action'] == 'partial':
-            # # change balance by manually because on_balance_update working after order event came
-            balance = self.connection.User.User_getMargin().result()[0]
-            self.balance = balance['availableMargin'] + balance['initMargin']
-            return {'action': 'first_copy',
-                    'exchange': self.exchange_name,
-                    'original_event': event
-                    }
+        # elif event['action'] == 'partial':
+        #     # # change balance by manually because on_balance_update working after order event came
+        #     balance = self.connection.User.User_getMargin().result()[0]
+        #     self.balance = balance['availableMargin'] + balance['initMargin']
+        #     return {'action': 'first_copy',
+        #             'exchange': self.exchange_name,
+        #             'original_event': event
+        #             }
 
     async def on_order_handler(self, event):
         self.create_order(event['order'])
@@ -176,6 +195,7 @@ class BitmexExchange(Exchange):
             o['stopPx'] = 0
         if o['price'] is None:
             o['price'] = self.socket[o['symbol']].get_instrument()['midPrice']
+
         return Order(o['price'], o["orderQty"],
                      self.get_part(o['symbol'], o["orderQty"], self.socket['XBTUSD'].get_instrument()['midPrice']),
                      o['orderID'],
@@ -200,11 +220,9 @@ class BitmexExchange(Exchange):
         print(result)
 
     def create_order(self, order):
-        if self.translate(order.symbol) == 'XBTUSD':
-            quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price)
-        else:
-            quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
-                                                    self.socket['XBTUSD'].get_instrument()['midPrice'])
+
+        quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
+                                                self.socket['XBTUSD'].get_instrument()['midPrice'])
 
         print(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
               f"Create Order: amount {quantity}, price: {order.price}  ")
