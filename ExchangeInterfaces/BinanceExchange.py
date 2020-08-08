@@ -1,3 +1,5 @@
+import math
+
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
@@ -14,6 +16,14 @@ class BinanceExchage(Exchange):
         self.socket = BinanceSocketManager(self.connection)
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
+        self.step_sizes = {}
+        symbol_info_arr = self.connection.get_exchange_info()
+        for symbol_info in symbol_info_arr['symbols']:
+            if symbol_info['symbol'] in self.pairs:
+                self.step_sizes[symbol_info['symbol']] = [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
+                                            # lambda f: f['stepSize'] if f['filterType'] == 'LOT_SIZE' else pass,symbol_info['filters']) })
+
+        # self.connection.get_exchange_info()['filters']
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -113,3 +123,36 @@ class BinanceExchage(Exchange):
             print("order created")
         except Exception as e:
             print(str(e))
+
+    def calc_quantity_from_part(self, symbol, quantityPart, price, side):
+        # calculate quantity from quantityPart
+
+        # if order[side] == sell: need obtain coin balance
+        if side == 'BUY':
+            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
+            quantity = float(quantityPart) * float(cur_bal) / float(price)
+        else:
+            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            quantity = quantityPart*cur_bal
+
+        # balanceIndex = [idx for idx, element in enumerate(self.get_balance()) if element['asset'] == str(symbol)[3:]][0]
+        # cur_bal = float(self.get_balance()[balanceIndex]['free'])
+        stepSize = float(self.step_sizes[symbol])
+        precision = int(round(-math.log(stepSize, 10), 0))
+        quantity = round(quantity, precision)
+
+        return quantity
+
+    def get_part(self, symbol, quantity, price, side):
+        # get part of the total balance of this coin
+
+        # if order[side] == sell: need obtain coin balance
+        if side == 'BUY':
+            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
+            part = float(quantity)*float(price)/balance
+        else:
+            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            part = float(quantity)/balance
+
+        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
+        return part
