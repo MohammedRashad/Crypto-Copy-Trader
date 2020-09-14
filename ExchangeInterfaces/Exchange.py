@@ -29,10 +29,10 @@ class Exchange:
     def create_order(self, symbol, side, type, price, quantity):
         pass
 
-    def get_balance_market_by_symbol(self, symbol):
+    def _get_balance_market_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
 
-    def get_balance_coin_by_symbol(self, symbol):
+    def _get_balance_coin_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
 
 

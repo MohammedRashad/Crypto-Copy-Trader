@@ -17,13 +17,11 @@ class BinanceExchage(Exchange):
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
         self.step_sizes = {}
+        self.first_copy = False
         symbol_info_arr = self.connection.get_exchange_info()
         for symbol_info in symbol_info_arr['symbols']:
             if symbol_info['symbol'] in self.pairs:
                 self.step_sizes[symbol_info['symbol']] = [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
-                                            # lambda f: f['stepSize'] if f['filterType'] == 'LOT_SIZE' else pass,symbol_info['filters']) })
-
-        # self.connection.get_exchange_info()['filters']
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -89,15 +87,10 @@ class BinanceExchage(Exchange):
         :param timeInForce: required if limit order
         :param stopPrice: required if type == STOP_LOSS or TAKE_PROFIT
         """
-        # # if order[side] == sell don't need calculate quantity
-        # if side == 'BUY':
-        #     quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
-        # else:
-        #     quantity = quantityPart
 
         quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
-        print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
-                       + str(self.get_balance_coin_by_symbol(symbol)) +
+        print('Slave ' + str(self._get_balance_market_by_symbol(symbol)) + ' '
+              + str(self._get_balance_coin_by_symbol(symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
         try:
             if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):
@@ -129,10 +122,10 @@ class BinanceExchage(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
+            cur_bal = float(self._get_balance_market_by_symbol(symbol)['free'])
             quantity = float(quantityPart) * float(cur_bal) / float(price)
         else:
-            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
+            cur_bal = float(self._get_balance_coin_by_symbol(symbol)['free'])
             quantity = quantityPart*cur_bal
 
         # balanceIndex = [idx for idx, element in enumerate(self.get_balance()) if element['asset'] == str(symbol)[3:]][0]
@@ -148,11 +141,19 @@ class BinanceExchage(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
-            part = float(quantity)*float(price)/balance
+            get_context_balance = self._get_balance_market_by_symbol
+            market_value = float(quantity) * float(price)
         else:
-            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
-            part = float(quantity)/balance
+            get_context_balance = self._get_balance_coin_by_symbol
+            market_value = float(quantity)
+
+        balance = float(get_context_balance(symbol)['free'])
+
+        # if first_copy the balance was update before
+        if self.first_copy:
+            balance += float(get_context_balance(symbol)['locked'])
+
+        part = market_value / balance
 
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part

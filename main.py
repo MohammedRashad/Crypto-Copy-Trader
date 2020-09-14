@@ -142,9 +142,9 @@ def server_begin():
 
     # orders = client.get_open_orders()
     print('Open Master Orders are ' + str(len(orders)) + ' ...')
-
+    client.first_copy = True
     old_orders = copy_trade(orders, slaves, client=client)
-
+    client.first_copy = False
     return client, slaves, old_orders
 
 
