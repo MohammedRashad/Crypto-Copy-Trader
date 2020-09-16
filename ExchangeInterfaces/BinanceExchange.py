@@ -39,7 +39,13 @@ class BinanceExchage(Exchange):
                 balance.append({'asset': ev['a'],
                                 'free': ev['f'],
                                 'locked': ev['l']})
-            self.set_balance(balance)
+            # self.set_balance(balance)
+            i = 0
+            while i < len(self.balance):
+                for act_bal in balance:
+                    if self.balance[i]['asset'] == act_bal['asset']:
+                        self.balance[i] = act_bal
+                i += 1
 
     def get_balance(self):
         return self.balance
