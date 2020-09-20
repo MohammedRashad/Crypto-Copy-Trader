@@ -113,14 +113,15 @@ class BitmexExchange(Exchange):
             if check_result:
                 return check_result
 
-            if event['data'][0]['ordStatus'] == 'New':
+            data = event['data'][0]
+            if data['ordStatus'] == 'New' \
+                    or (data['ordStatus'] == 'Filled' and 'ordType' in data):
                 if event['data'][0]['side'] == '':
 
                     close_order = event['data'][0]
                     # order to close position came
                     if close_order['ordType'] == 'Market':
-                        # positions = self.connection.Position.Position_get(filter=str("{\"symbol\": \""
-                        # close_order['orderQty'] = self.get_balance()
+
                         return {'action': 'close_position',
                                 'symbol': self.translate(close_order['symbol']),
                                 'type': self.translate(close_order['ordType']),
@@ -130,7 +131,7 @@ class BitmexExchange(Exchange):
                                 'original_event': event
                                 }
                     elif close_order['ordType'] == 'Limit':
-                        # self.add_expected_order_id(close_order['orderID'], self._master_close_limit_order)
+
                         return {'action': 'close_position',
                                 'symbol': self.translate(close_order['symbol']),
                                 'type': self.translate(close_order['ordType']),
@@ -140,8 +141,7 @@ class BitmexExchange(Exchange):
                                 'original_event': event
                                 }
 
-                # elif event['data'][0]['ordType'] == 'Market' or event['data'][0]['ordType'] == 'Stop':
-                #     event['data'][0]['price'] = self.socket.get_instrument()['midPrice']
+
                 order = self._self_order_to_global(event['data'][0])
 
                 return {
@@ -165,14 +165,6 @@ class BitmexExchange(Exchange):
                         'exchange': self.exchange_name,
                         'original_event': event
                         }
-        # elif event['action'] == 'partial':
-        #     # # change balance by manually because on_balance_update working after order event came
-        #     balance = self.connection.User.User_getMargin().result()[0]
-        #     self.balance = balance['availableMargin'] + balance['initMargin']
-        #     return {'action': 'first_copy',
-        #             'exchange': self.exchange_name,
-        #             'original_event': event
-        #             }
 
     async def on_order_handler(self, event):
         self.create_order(event['order'])
