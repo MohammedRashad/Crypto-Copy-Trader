@@ -27,7 +27,6 @@ class SlaveContainer:
                 slave.stop()
                 del slave
         self.slaves = slaves
-        # self.start()
 
     def start(self):
         self.master.start(self.on_event_handler)
@@ -40,7 +39,7 @@ class SlaveContainer:
 
     def on_event_handler(self, event):
         # callback for event new order
-        self.logger.debug(event)
+        self.logger.debug(f'Event came: {event}')
 
         p_event = self.master.process_event(event)
 
@@ -48,7 +47,7 @@ class SlaveContainer:
             # ignore this event
             return
 
-        self.logger.info(f'New action came: {{i: p_event[i] for i in p_event if i != "original_event"}}')
+        self.logger.info(f'New action came: { {i: p_event[i] for i in p_event if i != "original_event"} }')
 
         action = p_event['action']
         if action == "cancel":
@@ -60,8 +59,6 @@ class SlaveContainer:
         elif action == "close_position":
             for slave in self.slaves:
                 asyncio.run(slave.close_position(p_event))
-        elif action == "first_copy":
-            self.first_copy(self.master.get_open_orders())
 
         # store order_id of master order to relate it with slave order
         if action == "new_order":
@@ -81,3 +78,5 @@ class SlaveContainer:
         for slave in self.slaves:
             for o in orders:
                 asyncio.run(slave.async_create_order(o))
+            slave.balance_updated = False
+        self.master.balance_updated = False

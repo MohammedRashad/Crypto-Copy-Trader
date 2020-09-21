@@ -63,14 +63,9 @@ class BitmexExchange(Exchange):
         if 'availableMargin' in event:
             self.balance = event['availableMargin']
             self.balance_updated = True
-            # print(f"{self.name} Balance Updated: {event['availableMargin']}")
 
     def update_balance(self):
         self.balance = self.socket[self.pairs[0]].funds()['availableMargin']
-
-        # using rest api
-        # response = self.connection.User.User_getMargin().result()
-        # self.balance = response[0]['availableMargin']
 
     def get_open_orders(self):
         open_orders = []
@@ -80,7 +75,6 @@ class BitmexExchange(Exchange):
             for pair in self.pairs:
                 open_orders += self.socket[pair].open_orders(clOrdIDPrefix="")
 
-        # open_orders = list(filter(lambda o: o['ordStatus'] == 'New', orders[0]))
         general_orders = []
         for o in open_orders:
             general_orders.append(self._self_order_to_global(o))
@@ -117,39 +111,32 @@ class BitmexExchange(Exchange):
             data = event['data'][0]
             if data['ordStatus'] == 'New' \
                     or (data['ordStatus'] == 'Filled' and 'ordType' in data):
-                if event['data'][0]['side'] == '':
-
-                    close_order = event['data'][0]
+                if event['data'][0]['execInst'] == 'Close':
                     # order to close position came
+                    close_order = event['data'][0]
+
                     if close_order['ordType'] == 'Market':
+                        price = None
+                    else:
+                        price = close_order['price']
 
-                        return {'action': 'close_position',
-                                'symbol': self.translate(close_order['symbol']),
-                                'type': self.translate(close_order['ordType']),
-                                'price': None,
-                                'id': close_order['orderID'],
-                                'exchange': self.exchange_name,
-                                'original_event': event
-                                }
-                    elif close_order['ordType'] == 'Limit':
+                    return {'action': 'close_position',
+                            'symbol': self.translate(close_order['symbol']),
+                            'type': self.translate(close_order['ordType']),
+                            'price': price,
+                            'id': close_order['orderID'],
+                            'exchange': self.exchange_name,
+                            'original_event': event
+                            }
+                else:
+                    order = self._self_order_to_global(event['data'][0])
 
-                        return {'action': 'close_position',
-                                'symbol': self.translate(close_order['symbol']),
-                                'type': self.translate(close_order['ordType']),
-                                'price': close_order['price'],
-                                'id': close_order['orderID'],
-                                'exchange': self.exchange_name,
-                                'original_event': event
-                                }
-
-                order = self._self_order_to_global(event['data'][0])
-
-                return {
-                    'action': 'new_order',
-                    'order': order,
-                    'exchange': self.exchange_name,
-                    'original_event': event
-                }
+                    return {
+                        'action': 'new_order',
+                        'order': order,
+                        'exchange': self.exchange_name,
+                        'original_event': event
+                    }
         elif event['action'] == 'update':
             if 'ordStatus' not in event['data'][0]:
                 return
@@ -205,42 +192,48 @@ class BitmexExchange(Exchange):
                 return ordr_open.id
 
     def _cancel_order(self, order_id, clOrderID=None):
-        if clOrderID:
-            result = self.connection.Order.Order_cancel(clOrdID=clOrderID).result()
-        else:
-            result = self.connection.Order.Order_cancel(orderID=order_id).result()
-        self.logger.info(f'Cancel order request send. Response: {result}')
+        try:
+            if clOrderID:
+                result = self.connection.Order.Order_cancel(clOrdID=clOrderID).result()
+            else:
+                result = self.connection.Order.Order_cancel(orderID=order_id).result()
+            self.logger.info(f'Cancel order request send. Response: {result}')
+            self.logger.info(f'{self.name}: Order canceled')
+        except:
+            self.logger.exception(f'{self.name} Error cancel order')
 
     def create_order(self, order):
+        try:
+            quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
+                                                    self.socket['XBTUSD'].get_instrument()['midPrice'])
 
-        quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
-                                                self.socket['XBTUSD'].get_instrument()['midPrice'])
-
-        self.logger.info(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
-                         f"Create Order: amount {quantity}, price: {order.price}  ")
-        self.ids.append(order.id)
-        if order.type == 'MARKET' or order.type == 'Stop' or order.type == 'MarketIfTouched':
-            new_order = self.connection.Order.Order_new(symbol=self.translate(order.symbol),
-                                                        side=self.translate(order.side),
-                                                        orderQty=quantity,
-                                                        stopPx=order.stop,
-                                                        ordType=self.translate(order.type),
-                                                        clOrdID=order.id,
-                                                        timeInForce='GoodTillCancel')
-        else:
-            new_order = self.connection.Order.Order_new(symbol=self.translate(order.symbol),
-                                                        side=self.translate(order.side),
-                                                        orderQty=quantity,
-                                                        price=order.price,
-                                                        stopPx=order.stop,
-                                                        clOrdID=order.id,
-                                                        ordType=self.translate(order.type),
-                                                        timeInForce='GoodTillCancel'
-                                                        )
-        self.logger.info(f'Create order request send. Response: {new_order.result()} ')
+            self.logger.info(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
+                             f"Create Order: amount {quantity}, price: {order.price}  ")
+            self.ids.append(order.id)
+            if order.type == 'MARKET' or order.type == 'Stop' or order.type == 'MarketIfTouched':
+                new_order = self.connection.Order.Order_new(symbol=self.translate(order.symbol),
+                                                            side=self.translate(order.side),
+                                                            orderQty=quantity,
+                                                            stopPx=order.stop,
+                                                            ordType=self.translate(order.type),
+                                                            clOrdID=order.id,
+                                                            timeInForce='GoodTillCancel')
+            else:
+                new_order = self.connection.Order.Order_new(symbol=self.translate(order.symbol),
+                                                            side=self.translate(order.side),
+                                                            orderQty=quantity,
+                                                            price=order.price,
+                                                            stopPx=order.stop,
+                                                            clOrdID=order.id,
+                                                            ordType=self.translate(order.type),
+                                                            timeInForce='GoodTillCancel'
+                                                            )
+            self.logger.info(f'Create order request send. Response: {new_order.result()} ')
+        except:
+            self.logger.exception(f'{self.name}: Error create order')
 
     async def close_position(self, event):
-        self.logger.info(f'close_position {event["symbol"]}')
+        self.logger.info(f'{self.name}: close_position {event["symbol"]}')
 
         if event['type'] == 'MARKET':
             return self.connection.Order.Order_new(symbol=self.translate(event["symbol"]), ordType='Market',

@@ -20,8 +20,6 @@ class Exchange(ABC):
     def get_balance(self):
         return self.balance
 
-    # def make_relation(self, id):
-
     def get_trading_symbols(self):
         symbols = set()
         for pair in self.pairs:

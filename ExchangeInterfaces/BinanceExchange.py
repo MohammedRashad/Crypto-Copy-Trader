@@ -20,11 +20,11 @@ class BinanceExchange(Exchange):
 
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
-        copy_event = {'action': 'first_copy',
-                      'exchange': self.exchange_name,
-                      'original_event': None
-                      }
-        caller_callback(copy_event)
+        # copy_event = {'action': 'first_copy',
+        #               'exchange': self.exchange_name,
+        #               'original_event': None
+        #               }
+        # caller_callback(copy_event)
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -56,7 +56,7 @@ class BinanceExchange(Exchange):
 
     def _cancel_order(self, orderId, symbol):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
-        self.logger.info('Order canceled')
+        self.logger.info(f'{self.name }: Order canceled')
 
     async def on_cancel_handler(self, event):
         slave_order_id = self._cancel_order_detector(event['price'])
@@ -139,7 +139,7 @@ class BinanceExchange(Exchange):
         :param order:
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
-        self.logger.info('Slave ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
+        self.logger.info('Slave ' + self.name + ' ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
               + str(self._get_balance_coin_by_symbol(order.symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
@@ -178,11 +178,13 @@ class BinanceExchange(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            balance = float(self._get_balance_market_by_symbol(symbol)['free']) + float(float(price) * float(quantity))
-            part = float(quantity) * float(price) / balance
+            get_context_balance = self._get_balance_market_by_symbol
+            market_value = float(quantity) * float(price)
         else:
-            balance = float(self._get_balance_coin_by_symbol(symbol)['free']) + float(quantity)
-            part = float(quantity) / balance
+            get_context_balance = self._get_balance_coin_by_symbol
+            market_value = float(quantity)
+
+        balance = float(get_context_balance(symbol)['free'])
 
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part

@@ -15,7 +15,6 @@ class Order:
                f" symbol: {self.symbol}," \
                f" amount: {self.amount}," \
                f" part: {self.quantityPart}," \
-               f" order_type: {self.order_type}," \
                f" side: {self.side}," \
                f" type: {self.type},"
 
