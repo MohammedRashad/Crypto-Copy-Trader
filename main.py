@@ -10,6 +10,10 @@ import time
 from ExchangeInterfaces.BinanceExchange import BinanceExchange
 from SlaveContainer import SlaveContainer
 
+import logging
+import logging.config
+import sys
+
 import numpy as np
 # import pandas as pd
 import sqlite3 as sql
@@ -87,50 +91,48 @@ def order_cancel_checker(i_orders, i_old_orders, i_slaves):
                         slave._cancel_order(orderId=ordr_open['orderId'], symbol=ordr_open['symbol'])
 
 
+def create_logger():
+    # create logger
+    logger = logging.getLogger('cct')
+
+    # Create handlers
+    c_handler = logging.StreamHandler(stream=sys.stdout)
+    f_handler = logging.FileHandler('logs/cct.log', mode='w')
+    c_handler.setLevel(logging.INFO)
+    f_handler.setLevel(logging.DEBUG)
+
+    # Create formatters and add it to handlers
+    c_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    c_handler.setFormatter(c_format)
+    f_handler.setFormatter(f_format)
+
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(f_handler)
+    logger.setLevel(logging.DEBUG)
+
+    return logger
+
+
 def server_begin():
     ############################################
     ## -- Server Preparation
     ############################################
-    print('Application started...')
+
+    logger = create_logger()
+    logger.info('The Crypto-Copy-Trader starts launch')
+
     with open('./config_files/config.json', 'r') as config_f:
         config = json.load(config_f)
 
-    print('Reading configuration file...')
-    print(len(config['slaves']), ' Slave accounts detected')
+    logger.info('Reading configuration file...')
+    logger.info(f'{len(config["slaves"])} Slave accounts detected')
 
     file = open('config_files/symbols.csv', "r")
     symbols = file.readlines()
 
     slave_container = SlaveContainer(config, symbols)
-
-    # client = slave_container.master
-    #
-    # print('')
-    # print('Get Master Orders...')
-    # orders = client.get_open_orders()
-    # pprint.pprint(str(orders))
-    # print('Opening Slave Accounts...')
-    #
-    # slaves = slave_container.slaves
-    # slave_number = 0
-    # for slave in slaves:
-    #     slave_open_orders = slave.get_open_orders()
-    #     print('')
-    #     print('Opening Slave Account #' + str(slave_number) + ' ...')
-    #     print('')
-    #     print('Get Slave Orders...')
-    #
-    #     pprint.pprint(slave_open_orders)
-    #     slave_number += 1
-    #     print('')
-    #
-    print('Will start copying from now...please place a new order')
-    # print('')
-    #
-    # print('Open Master Orders are ' + str(len(orders)) + ' ...')
-    #
-    # slave_container.first_copy(orders)
-    # #old_orders = copy_trade(orders, slaves, client=client)
 
     return slave_container
 

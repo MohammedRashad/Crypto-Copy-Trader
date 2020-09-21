@@ -34,15 +34,13 @@ def my_function2(file_name, client, slaves, old_orders, Thread_num):
 
 
 def socket_function(container: SlaveContainer):
-    print("Using web socket")
-    # first_copy
     container.start()
+    # first_copy
     container.first_copy(container.master.get_open_orders())
     # set variable for stop socket
     set_stop_run.container = container
     global socket_usage
     socket_usage = True
-
 
 
 def manual_run():

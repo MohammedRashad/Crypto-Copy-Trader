@@ -23,7 +23,7 @@ class BitmexExchange(Exchange):
 
         super().__init__(apiKey, apiSecret, pairs, name)
         self.pairs = list(map(lambda pair: self.translate(pair) if pair != self.translate(pair)
-        else print(f"Can't translate word {pair} in {BitmexExchange.exchange_name}"), self.pairs))
+        else self.logger.debug(f"Can't translate word {pair} in {BitmexExchange.exchange_name}"), self.pairs))
         self.pairs = list(filter(None, self.pairs))
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
         self.socket = {}
@@ -40,6 +40,7 @@ class BitmexExchange(Exchange):
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret']
                                                 )
+
     def start(self, caller_callback):
         self.stop()
         self.socket['XBTUSD'] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol='XBTUSD',
@@ -62,7 +63,7 @@ class BitmexExchange(Exchange):
         if 'availableMargin' in event:
             self.balance = event['availableMargin']
             self.balance_updated = True
-            print(f"{self.name} Balance Updated: {event['availableMargin']}")
+            # print(f"{self.name} Balance Updated: {event['availableMargin']}")
 
     def update_balance(self):
         self.balance = self.socket[self.pairs[0]].funds()['availableMargin']
@@ -141,7 +142,6 @@ class BitmexExchange(Exchange):
                                 'original_event': event
                                 }
 
-
                 order = self._self_order_to_global(event['data'][0])
 
                 return {
@@ -180,7 +180,7 @@ class BitmexExchange(Exchange):
         if order_id or clOrderId:
             self._cancel_order(order_id, clOrderId)
         else:
-            print(f'Cancel rejected: Cant find necessary order in slave {self.exchange_name}')
+            self.logger.error(f'Cancel rejected: Cant find necessary order in slave {self.exchange_name}')
 
     def _self_order_to_global(self, o) -> Order:
         if 'stopPx' not in o:
@@ -209,15 +209,15 @@ class BitmexExchange(Exchange):
             result = self.connection.Order.Order_cancel(clOrdID=clOrderID).result()
         else:
             result = self.connection.Order.Order_cancel(orderID=order_id).result()
-        print(result)
+        self.logger.info(f'Cancel order request send. Response: {result}')
 
     def create_order(self, order):
 
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
                                                 self.socket['XBTUSD'].get_instrument()['midPrice'])
 
-        print(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
-              f"Create Order: amount {quantity}, price: {order.price}  ")
+        self.logger.info(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
+                         f"Create Order: amount {quantity}, price: {order.price}  ")
         self.ids.append(order.id)
         if order.type == 'MARKET' or order.type == 'Stop' or order.type == 'MarketIfTouched':
             new_order = self.connection.Order.Order_new(symbol=self.translate(order.symbol),
@@ -237,10 +237,10 @@ class BitmexExchange(Exchange):
                                                         ordType=self.translate(order.type),
                                                         timeInForce='GoodTillCancel'
                                                         )
-        print(f'order created: {new_order.result()} ')
+        self.logger.info(f'Create order request send. Response: {new_order.result()} ')
 
     async def close_position(self, event):
-        print(f'close_position {event["symbol"]}')
+        self.logger.info(f'close_position {event["symbol"]}')
 
         if event['type'] == 'MARKET':
             return self.connection.Order.Order_new(symbol=self.translate(event["symbol"]), ordType='Market',

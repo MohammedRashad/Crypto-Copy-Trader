@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import logging
 
 
 class Exchange(ABC):
@@ -14,6 +15,7 @@ class Exchange(ABC):
         self.balance = None
         self.expected_orders = list()
         self.ids = []  # store here order which was created by program
+        self.logger = logging.getLogger('cct')
 
     def get_balance(self):
         return self.balance

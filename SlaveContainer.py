@@ -2,6 +2,7 @@ import asyncio
 from ExchangeInterfaces.BinanceExchange import BinanceExchange
 from ExchangeInterfaces.BitmexExchange import BitmexExchange
 from ExchangeInterfaces.Exchange import Exchange
+import logging
 
 
 def factory_method_create_exchange(single_config, pairs) -> Exchange:
@@ -12,6 +13,8 @@ def factory_method_create_exchange(single_config, pairs) -> Exchange:
 
 class SlaveContainer:
     def __init__(self, config, pairs):
+
+        self.logger = logging.getLogger('cct')
 
         self.master = factory_method_create_exchange(config['master'], pairs)
 
@@ -28,6 +31,7 @@ class SlaveContainer:
 
     def start(self):
         self.master.start(self.on_event_handler)
+        self.logger.info('Launch complete. Now I can copy orders')
 
     def stop(self):
         self.master.stop()
@@ -36,12 +40,15 @@ class SlaveContainer:
 
     def on_event_handler(self, event):
         # callback for event new order
-        print(event)
+        self.logger.debug(event)
 
         p_event = self.master.process_event(event)
 
         if p_event is None:
+            # ignore this event
             return
+
+        self.logger.info(f'New action came: {{i: p_event[i] for i in p_event if i != "original_event"}}')
 
         action = p_event['action']
         if action == "cancel":

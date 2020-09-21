@@ -56,7 +56,7 @@ class BinanceExchange(Exchange):
 
     def _cancel_order(self, orderId, symbol):
         self.connection.cancel_order(symbol=symbol, orderId=orderId)
-        print('order canceled')
+        self.logger.info('Order canceled')
 
     async def on_cancel_handler(self, event):
         slave_order_id = self._cancel_order_detector(event['price'])
@@ -139,7 +139,7 @@ class BinanceExchange(Exchange):
         :param order:
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
-        print('Slave ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
+        self.logger.info('Slave ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
               + str(self._get_balance_coin_by_symbol(order.symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
@@ -163,9 +163,9 @@ class BinanceExchange(Exchange):
                                              quantity=quantity,
                                              price=order.price,
                                              timeInForce='GTC')
-            print("order created")
+            self.logger.info("order created")
         except Exception as e:
-            print(str(e))
+            self.logger.error(str(e))
 
     def _get_balance_market_by_symbol(self, symbol):
         return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
