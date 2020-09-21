@@ -1,3 +1,7 @@
+import math
+
+from binance.exceptions import BinanceAPIException
+
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
@@ -8,8 +12,8 @@ class BinanceExchange(Exchange):
     exchange_name = "Binance"
     isMargin = False
 
-    def __init__(self, apiKey, apiSecret, pairs):
-        super().__init__(apiKey, apiSecret, pairs)
+    def __init__(self, apiKey, apiSecret, pairs, name):
+        super().__init__(apiKey, apiSecret, pairs, name=name)
 
         self.connection = Client(self.api['key'], self.api['secret'])
         self.update_balance()
@@ -17,6 +21,13 @@ class BinanceExchange(Exchange):
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
         self.is_last_order_event_completed = True
+        self.step_sizes = {}
+        self.balance_updated = True
+        symbol_info_arr = self.connection.get_exchange_info()
+        for symbol_info in symbol_info_arr['symbols']:
+            if symbol_info['symbol'] in self.pairs:
+                self.step_sizes[symbol_info['symbol']] = \
+                    [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
 
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
@@ -54,8 +65,13 @@ class BinanceExchange(Exchange):
         print('order canceled')
 
     async def on_cancel_handler(self, event):
-        slave_order_id = self._cancel_order_detector(event['price'])
-        self._cancel_order(slave_order_id, event['symbol'])
+        try:
+            slave_order_id = self._cancel_order_detector(event['price'])
+            self._cancel_order(slave_order_id, event['symbol'])
+        except BinanceAPIException as error:
+            print(f'{self.name} error {error.message}')
+        except:
+            print(f"error in action: {event['action']} in slave {self.name}")
 
     def stop(self):
         self.socket.close()
@@ -129,7 +145,7 @@ class BinanceExchange(Exchange):
         :param order:
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
-        print('Slave ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
+        print('Slave ' + self.name + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
               + str(self._get_balance_coin_by_symbol(order.symbol)) +
               ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
@@ -141,7 +157,7 @@ class BinanceExchange(Exchange):
                                              quantity=quantity,
                                              timeInForce='GTC',
                                              stopPrice=order.stop)
-            if (type == 'MARKET'):
+            elif order.type == 'MARKET':
                 self.connection.create_order(symbol=order.symbol,
                                              side=order.side,
                                              type=order.type,
@@ -168,11 +184,21 @@ class BinanceExchange(Exchange):
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            balance = float(self._get_balance_market_by_symbol(symbol)['free'])
-            part = float(quantity) * float(price) / balance
+            get_context_balance = self._get_balance_market_by_symbol
+            market_value = float(quantity) * float(price)
         else:
-            balance = float(self._get_balance_coin_by_symbol(symbol)['free'])
-            part = float(quantity) / balance
+            get_context_balance = self._get_balance_coin_by_symbol
+            market_value = float(quantity)
+
+        balance = float(get_context_balance(symbol)['free'])
+
+        # if first_copy the balance was update before
+        if self.balance_updated:
+            balance += float(get_context_balance(symbol)['locked'])
+        else:
+            balance += market_value
+
+        part = market_value / balance
 
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
@@ -181,12 +207,22 @@ class BinanceExchange(Exchange):
         # calculate quantity from quantityPart
 
         # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            cur_bal = float(self._get_balance_market_by_symbol(symbol)['free'])
-            quantity = float(quantityPart) * float(cur_bal) / float(price)
-        else:
-            cur_bal = float(self._get_balance_coin_by_symbol(symbol)['free'])
-            quantity = quantityPart * cur_bal
 
-        quantity = round(quantity, 6)
+        if side == 'BUY':
+            get_context_balance = self._get_balance_market_by_symbol
+            buy_koef = float(price)
+        else:
+            get_context_balance = self._get_balance_coin_by_symbol
+            buy_koef = 1
+
+        cur_bal = float(get_context_balance(symbol)['free'])
+
+        if self.balance_updated:
+            cur_bal += float(get_context_balance(symbol)['locked'])
+
+        quantity = quantityPart * cur_bal / buy_koef
+
+        stepSize = float(self.step_sizes[symbol])
+        precision = int(round(-math.log(stepSize, 10), 0))
+        quantity = round(quantity, precision)
         return quantity

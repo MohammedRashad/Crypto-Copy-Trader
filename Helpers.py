@@ -14,6 +14,7 @@ class Order:
         return f"Order: price: {self.price}," \
                f" symbol: {self.symbol}," \
                f" amount: {self.amount}," \
+               f" part: {self.quantityPart}" \
                f" side: {self.side}," \
                f" type: {self.type},"
 

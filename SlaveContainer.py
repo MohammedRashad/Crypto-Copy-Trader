@@ -7,7 +7,7 @@ from ExchangeInterfaces.Exchange import Exchange
 def factory_method_create_exchange(single_config, pairs) -> Exchange:
     exchange_name = single_config['exchange_name']
     necessary_class = globals()[exchange_name]
-    return necessary_class(single_config['key'], single_config['secret'], pairs)
+    return necessary_class(single_config['key'], single_config['secret'], pairs, single_config['name'])
 
 
 class SlaveContainer:
@@ -46,6 +46,7 @@ class SlaveContainer:
             for slave in self.slaves:
                 asyncio.run(slave.on_cancel_handler(p_event))
         elif p_event['action'] == "new_order":
+            print(f"New order came: {p_event['order']}")
             for slave in self.slaves:
                 asyncio.run(slave.on_order_handler(p_event))
         elif p_event['action'] == "close_position":
@@ -59,3 +60,5 @@ class SlaveContainer:
         for slave in self.slaves:
             for o in orders:
                 asyncio.run(slave.async_create_order(o))
+            slave.balance_updated = False
+        self.master.balance_updated = False
