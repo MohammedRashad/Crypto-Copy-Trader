@@ -1,3 +1,7 @@
+import math
+
+from binance.exceptions import BinanceAPIException
+
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
@@ -17,6 +21,13 @@ class BinanceExchange(Exchange):
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
         self.is_last_order_event_completed = True
+        self.step_sizes = {}
+        self.balance_updated = True
+        symbol_info_arr = self.connection.get_exchange_info()
+        for symbol_info in symbol_info_arr['symbols']:
+            if symbol_info['symbol'] in self.pairs:
+                self.step_sizes[symbol_info['symbol']] = \
+                    [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
 
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
@@ -42,7 +53,13 @@ class BinanceExchange(Exchange):
                 balance.append({'asset': ev['a'],
                                 'free': ev['f'],
                                 'locked': ev['l']})
-            self.set_balance(balance)
+            # self.set_balance(balance)
+            i = 0
+            while i < len(self.balance):
+                for act_bal in balance:
+                    if self.balance[i]['asset'] == act_bal['asset']:
+                        self.balance[i] = act_bal
+                i += 1
 
     def get_open_orders(self):
         orders = self.connection.get_open_orders()
@@ -59,8 +76,13 @@ class BinanceExchange(Exchange):
         self.logger.info(f'{self.name }: Order canceled')
 
     async def on_cancel_handler(self, event):
-        slave_order_id = self._cancel_order_detector(event['price'])
-        self._cancel_order(slave_order_id, event['symbol'])
+        try:
+            slave_order_id = self._cancel_order_detector(event['price'])
+            self._cancel_order(slave_order_id, event['symbol'])
+        except BinanceAPIException as error:
+            self.logger.error(f'{self.name}: error {error.message}')
+        except:
+            self.logger.error(f"{self.name}: error in action: {event['action']} in slave {self.name}")
 
     def stop(self):
         self.socket.close()
@@ -186,6 +208,13 @@ class BinanceExchange(Exchange):
 
         balance = float(get_context_balance(symbol)['free'])
 
+        # if first_copy the balance was update before
+        if self.balance_updated:
+            balance += float(get_context_balance(symbol)['locked'])
+        else:
+            balance += market_value
+
+        part = market_value / balance
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
 
@@ -193,12 +222,22 @@ class BinanceExchange(Exchange):
         # calculate quantity from quantityPart
 
         # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            cur_bal = float(self._get_balance_market_by_symbol(symbol)['free'])
-            quantity = float(quantityPart) * float(cur_bal) / float(price)
-        else:
-            cur_bal = float(self._get_balance_coin_by_symbol(symbol)['free'])
-            quantity = quantityPart * cur_bal
 
-        quantity = round(quantity, 6)
+        if side == 'BUY':
+            get_context_balance = self._get_balance_market_by_symbol
+            buy_koef = float(price)
+        else:
+            get_context_balance = self._get_balance_coin_by_symbol
+            buy_koef = 1
+
+        cur_bal = float(get_context_balance(symbol)['free'])
+
+        if self.balance_updated:
+            cur_bal += float(get_context_balance(symbol)['locked'])
+
+        quantity = quantityPart * cur_bal / buy_koef
+
+        stepSize = float(self.step_sizes[symbol])
+        precision = int(round(-math.log(stepSize, 10), 0))
+        quantity = round(quantity, precision)
         return quantity

@@ -1,13 +1,8 @@
-import threading
-
 from .Exchange import Exchange
-from bitmex_websocket import BitMEXWebsocket
-from websocket import create_connection
+# from bitmex_websocket import BitMEXWebsocket
+from Helpers.Bitmex_websocket_mod import BitMEXWebsocket_mod as BitMEXWebsocket
 import bitmex
-import json
-import platform
-import os
-from Helpers import Order
+from Helpers.Order import Order
 
 BITMEX_URL = "wss://testnet.bitmex.com"
 # BITMEX_URL = "wss://www.bitmex.com"
