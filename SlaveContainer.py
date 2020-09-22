@@ -3,6 +3,7 @@ from ExchangeInterfaces.BinanceExchange import BinanceExchange
 from ExchangeInterfaces.BitmexExchange import BitmexExchange
 from ExchangeInterfaces.Exchange import Exchange
 import logging
+import Actions.Actions as Actions
 
 
 def factory_method_create_exchange(single_config, pairs) -> Exchange:
@@ -15,9 +16,10 @@ class SlaveContainer:
     def __init__(self, config, pairs):
 
         self.logger = logging.getLogger('cct')
-
+        self.logger.info(f"Connecting to the master: {config['master']['name']}...")
         self.master = factory_method_create_exchange(config['master'], pairs)
 
+        self.logger.info("Connecting to the slaves. Its can take time...")
         slaves = []
         for slave_config in config['slaves']:
             slave = factory_method_create_exchange(slave_config, pairs)
@@ -29,8 +31,9 @@ class SlaveContainer:
         self.slaves = slaves
 
     def start(self):
+        self.logger.info("Open masters websocket... ")
         self.master.start(self.on_event_handler)
-        self.logger.info('Launch complete. Now I can copy orders')
+        self.logger.info('Launch complete. Now I can copy orders!')
 
     def stop(self):
         self.master.stop()
@@ -47,27 +50,26 @@ class SlaveContainer:
             # ignore this event
             return
 
-        self.logger.info(f'New action came: { {i: p_event[i] for i in p_event if i != "original_event"} }')
+        self.logger.info(f'New action came: {p_event}')
 
-        action = p_event['action']
-        if action == "cancel":
+        if isinstance(p_event, Actions.ActionCancel):
             for slave in self.slaves:
                 asyncio.run(slave.on_cancel_handler(p_event))
-        elif action == "new_order":
+        elif isinstance(p_event, Actions.ActionNewOrder):
             for slave in self.slaves:
                 asyncio.run(slave.on_order_handler(p_event))
-        elif action == "close_position":
+        elif isinstance(p_event, Actions.ActionClosePosition):
             for slave in self.slaves:
                 asyncio.run(slave.close_position(p_event))
 
         # store order_id of master order to relate it with slave order
-        if action == "new_order":
+        if isinstance(p_event, Actions.ActionNewOrder):
             for slave in self.slaves:
-                slave.ids.append(p_event['order'].id)
+                slave.ids.append(p_event.order.id)
 
         # delete already not existed order ids to avoid memory leak
-        if action == "close_position" or action == "cancel":
-            ord_id = p_event['id']
+        elif isinstance(p_event, (Actions.ActionClosePosition, Actions.ActionCancel)):
+            ord_id = p_event.order_id
             for slave in self.slaves:
                 if slave.is_program_order(ord_id):
                     slave.delete_id(ord_id)

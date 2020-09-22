@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
-
+import Actions.Actions as Actions
 
 class Exchange(ABC):
     exchange_name = None
@@ -37,11 +37,11 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    def process_event(self, event):
+    def process_event(self, event) -> Actions.Action or None:
         pass
 
     @abstractmethod
-    def on_order_handler(self, event):
+    def on_order_handler(self, event: Actions.ActionNewOrder):
         pass
 
     @abstractmethod
@@ -49,7 +49,7 @@ class Exchange(ABC):
         pass
 
     @abstractmethod
-    async def on_cancel_handler(self, event):
+    async def on_cancel_handler(self, event: Actions.ActionCancel):
         pass
 
     @abstractmethod
@@ -76,7 +76,7 @@ class Exchange(ABC):
             if order.id == expected_order['id']:
                 expected_order['callback'](order)
 
-    async def close_position(self, event):
+    async def close_position(self, event: Actions.ActionClosePosition):
         print(f" exchange {self.exchange_name} do not support event \' close_position \' ")
 
     def is_program_order(self, _id) -> bool:

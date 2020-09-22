@@ -1,11 +1,12 @@
 import math
+import Actions.Actions as Actions
 
 from binance.exceptions import BinanceAPIException
 
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
-from Helpers import Order
+from Helpers.Order import Order
 
 
 class BinanceExchange(Exchange):
@@ -31,11 +32,6 @@ class BinanceExchange(Exchange):
 
     def start(self, caller_callback):
         self.socket.start_user_socket(caller_callback)
-        # copy_event = {'action': 'first_copy',
-        #               'exchange': self.exchange_name,
-        #               'original_event': None
-        #               }
-        # caller_callback(copy_event)
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -71,18 +67,18 @@ class BinanceExchange(Exchange):
                       self.exchange_name))
         return general_orders
 
-    def _cancel_order(self, orderId, symbol):
-        self.connection.cancel_order(symbol=symbol, orderId=orderId)
-        self.logger.info(f'{self.name }: Order canceled')
+    def _cancel_order(self, order_id, symbol):
+        self.connection.cancel_order(symbol=symbol, orderId=order_id)
+        self.logger.info(f'{self.name}: Order canceled')
 
-    async def on_cancel_handler(self, event):
+    async def on_cancel_handler(self, event: Actions.ActionCancel):
         try:
-            slave_order_id = self._cancel_order_detector(event['price'])
-            self._cancel_order(slave_order_id, event['symbol'])
+            slave_order_id = self._cancel_order_detector(event.price)
+            self._cancel_order(slave_order_id, event.symbol)
         except BinanceAPIException as error:
             self.logger.error(f'{self.name}: error {error.message}')
         except:
-            self.logger.error(f"{self.name}: error in action: {event['action']} in slave {self.name}")
+            self.logger.error(f"{self.name}: error in action: {event.name} in slave {self.name}")
 
     def stop(self):
         self.socket.close()
@@ -108,13 +104,13 @@ class BinanceExchange(Exchange):
             if event['X'] == 'FILLED':
                 return
             elif event['x'] == 'CANCELED':
-                return {'action': 'cancel',
-                        'symbol': event['s'],
-                        'price': event['p'],
-                        'id': event['i'],
-                        'exchange': self.exchange_name,
-                        'original_event': event
-                        }
+                return Actions.ActionCancel(
+                    event['s'],
+                    event['p'],
+                    event['i'],
+                    self.exchange_name,
+                    event
+                )
             self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
             # sometimes can came event executionReport x == filled and x == new together so we need flag
             self.is_last_order_event_completed = False
@@ -146,15 +142,12 @@ class BinanceExchange(Exchange):
                           order_event['o'],
                           self.exchange_name,
                           order_event['P'])
-            return {
-                'action': 'new_order',
-                'order': order,
-                'exchange': self.exchange_name,
-                'original_event': event
-            }
+            return Actions.ActionNewOrder(order,
+                                          self.exchange_name,
+                                          event)
 
-    async def on_order_handler(self, event):
-        self.create_order(event['order'])
+    async def on_order_handler(self, event: Actions.ActionNewOrder):
+        self.create_order(event.order)
 
     def create_order(self, order):
         """
@@ -162,8 +155,8 @@ class BinanceExchange(Exchange):
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
         self.logger.info('Slave ' + self.name + ' ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
-              + str(self._get_balance_coin_by_symbol(order.symbol)) +
-              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
+                         + str(self._get_balance_coin_by_symbol(order.symbol)) +
+                         ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
             if order.type == 'STOP_LOSS_LIMIT' or order.type == "TAKE_PROFIT_LIMIT":
                 self.connection.create_order(symbol=order.symbol,
@@ -185,7 +178,7 @@ class BinanceExchange(Exchange):
                                              quantity=quantity,
                                              price=order.price,
                                              timeInForce='GTC')
-            self.logger.info("order created")
+            self.logger.info(f"{self.name}: order created")
         except Exception as e:
             self.logger.error(str(e))
 

@@ -3,6 +3,7 @@ from .Exchange import Exchange
 from Helpers.Bitmex_websocket_mod import BitMEXWebsocket_mod as BitMEXWebsocket
 import bitmex
 from Helpers.Order import Order
+import Actions.Actions as Actions
 
 BITMEX_URL = "wss://testnet.bitmex.com"
 # BITMEX_URL = "wss://www.bitmex.com"
@@ -115,23 +116,30 @@ class BitmexExchange(Exchange):
                     else:
                         price = close_order['price']
 
-                    return {'action': 'close_position',
-                            'symbol': self.translate(close_order['symbol']),
-                            'type': self.translate(close_order['ordType']),
-                            'price': price,
-                            'id': close_order['orderID'],
-                            'exchange': self.exchange_name,
-                            'original_event': event
-                            }
+                    return Actions.ActionClosePosition(
+                        self.translate(close_order['symbol']),
+                        self.translate(close_order['ordType']),
+                        price,
+                        close_order['orderID'],
+                        self.exchange_name,
+                        event
+                    )
+                    # {'action': 'close_position',
+                    #     'symbol': self.translate(close_order['symbol']),
+                    #     'type': self.translate(close_order['ordType']),
+                    #     'price': price,
+                    #     'id': close_order['orderID'],
+                    #     'exchange': self.exchange_name,
+                    #     'original_event': event
+                    #     }
                 else:
                     order = self._self_order_to_global(event['data'][0])
 
-                    return {
-                        'action': 'new_order',
-                        'order': order,
-                        'exchange': self.exchange_name,
-                        'original_event': event
-                    }
+                    return Actions.ActionNewOrder(
+                        order,
+                        self.exchange_name,
+                        event)
+
         elif event['action'] == 'update':
             if 'ordStatus' not in event['data'][0]:
                 return
@@ -140,23 +148,23 @@ class BitmexExchange(Exchange):
                 order = list(filter(lambda o: o['orderID'] == event['data'][0]['orderID'],
                                     orders))[0]
                 global_order = self._self_order_to_global(order)
-                return {'action': 'cancel',
-                        'symbol': global_order.symbol,
-                        'id': global_order.id,
-                        'price': global_order.price,
-                        'exchange': self.exchange_name,
-                        'original_event': event
-                        }
+                return Actions.ActionCancel(
+                    global_order.symbol,
+                    global_order.price,
+                    global_order.id,
+                    self.exchange_name,
+                    event
+                )
 
-    async def on_order_handler(self, event):
-        self.create_order(event['order'])
+    async def on_order_handler(self, event: Actions.ActionNewOrder):
+        self.create_order(event.order)
 
-    async def on_cancel_handler(self, event):
-        if self.is_program_order(event['id']):
+    async def on_cancel_handler(self, event: Actions.ActionCancel):
+        if self.is_program_order(event.order_id):
             order_id = None
-            clOrderId = event['id']
+            clOrderId = event.order_id
         else:
-            order_id = self._cancel_order_detector(event['price'])
+            order_id = self._cancel_order_detector(event.price)
             clOrderId = None
 
         if order_id or clOrderId:
@@ -197,7 +205,7 @@ class BitmexExchange(Exchange):
         except:
             self.logger.exception(f'{self.name} Error cancel order')
 
-    def create_order(self, order):
+    def create_order(self, order: Order):
         try:
             quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
                                                     self.socket['XBTUSD'].get_instrument()['midPrice'])
@@ -227,18 +235,18 @@ class BitmexExchange(Exchange):
         except:
             self.logger.exception(f'{self.name}: Error create order')
 
-    async def close_position(self, event):
-        self.logger.info(f'{self.name}: close_position {event["symbol"]}')
+    async def close_position(self, event: Actions.ActionClosePosition):
+        self.logger.info(f'{self.name}: close_position {event.symbol}')
 
-        if event['type'] == 'MARKET':
-            return self.connection.Order.Order_new(symbol=self.translate(event["symbol"]), ordType='Market',
+        if event.order_type == 'MARKET':
+            return self.connection.Order.Order_new(symbol=self.translate(event.symbol), ordType='Market',
                                                    execInst='Close').result()
         else:
-            self.ids.append(event['id'])
-            return self.connection.Order.Order_new(symbol=self.translate(event["symbol"]), ordType='Limit',
-                                                   price=event['price'],
+            self.ids.append(event.order_id)
+            return self.connection.Order.Order_new(symbol=self.translate(event.symbol), ordType='Limit',
+                                                   price=event.price,
                                                    execInst='Close',
-                                                   clOrdID=event['id']).result()
+                                                   clOrdID=event.order_id).result()
 
     translate_dict = {
         'BTCUSDT': 'XBTUSD',

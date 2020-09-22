@@ -88,7 +88,7 @@ def order_cancel_checker(i_orders, i_old_orders, i_slaves):
                 for order in i_old_orders:
                     if ((ordr_open['price'] == order['price']) and (ordr_open['symbol'] == order['symbol'])) and not (
                             order in i_orders):
-                        slave._cancel_order(orderId=ordr_open['orderId'], symbol=ordr_open['symbol'])
+                        slave._cancel_order(order_id=ordr_open['orderId'], symbol=ordr_open['symbol'])
 
 
 def create_logger():
