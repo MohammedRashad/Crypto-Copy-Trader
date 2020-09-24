@@ -60,6 +60,10 @@ def set_stop_run():
 @app.route("/run", methods=['GET'])
 def run_process():
     global stop_run
+    if not stop_run:
+        logger = logging.getLogger('cct')
+        logger.warning('The Program already has been running')
+        return redirect("/")
     stop_run = False
     manual_run()
     return redirect("/", code=302)

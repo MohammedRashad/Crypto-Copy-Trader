@@ -210,7 +210,7 @@ class BitmexExchange(Exchange):
             quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart,
                                                     self.socket['XBTUSD'].get_instrument()['midPrice'])
 
-            self.logger.info(f"Slave {self.exchange_name}, balance: {self.get_balance()}; "
+            self.logger.info(f"Slave {self.name}, balance: {self.get_balance()}; "
                              f"Create Order: amount {quantity}, price: {order.price}  ")
             self.ids.append(order.id)
             if order.type == 'MARKET' or order.type == 'Stop' or order.type == 'MarketIfTouched':
@@ -231,7 +231,8 @@ class BitmexExchange(Exchange):
                                                             ordType=self.translate(order.type),
                                                             timeInForce='GoodTillCancel'
                                                             )
-            self.logger.info(f'Create order request send. Response: {new_order.result()} ')
+            self.logger.info(f'Create order request send')
+            self.logger.debug(f'Response: {new_order.result()} ')
         except:
             self.logger.exception(f'{self.name}: Error create order')
 

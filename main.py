@@ -95,6 +95,10 @@ def create_logger():
     # create logger
     logger = logging.getLogger('cct')
 
+    # check if logger already been created
+    if logger.hasHandlers():
+        return logger
+
     # Create handlers
     c_handler = logging.StreamHandler(stream=sys.stdout)
     f_handler = logging.FileHandler('logs/cct.log', mode='w')

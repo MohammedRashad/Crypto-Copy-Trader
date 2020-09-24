@@ -17,17 +17,21 @@ class SlaveContainer:
 
         self.logger = logging.getLogger('cct')
         self.logger.info(f"Connecting to the master: {config['master']['name']}...")
-        self.master = factory_method_create_exchange(config['master'], pairs)
-
-        self.logger.info("Connecting to the slaves. Its can take time...")
         slaves = []
-        for slave_config in config['slaves']:
-            slave = factory_method_create_exchange(slave_config, pairs)
-            if self.master.isMargin == slave.isMargin:
-                slaves.append(slave)
-            else:
-                slave.stop()
-                del slave
+        try:
+            self.master = factory_method_create_exchange(config['master'], pairs)
+            self.logger.info("Connecting to the slaves. Its can take time...")
+
+            for slave_config in config['slaves']:
+                slave = factory_method_create_exchange(slave_config, pairs)
+                if self.master.isMargin == slave.isMargin:
+                    slaves.append(slave)
+                else:
+                    slave.stop()
+                    del slave
+        except RuntimeError as error:
+            self.logger.exception("Error initialing exchanges")
+
         self.slaves = slaves
 
     def start(self):
@@ -50,7 +54,7 @@ class SlaveContainer:
             # ignore this event
             return
 
-        self.logger.info(f'New action came: {p_event}')
+        self.logger.info(f'\nNew action came: {p_event}')
 
         if isinstance(p_event, Actions.ActionCancel):
             for slave in self.slaves:

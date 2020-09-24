@@ -5,3 +5,5 @@ deepdiff==4.0.9
 numpy>=1.13.3
 binance==0.3
 bitmex
+bitmex_ws==0.4.0
+
