@@ -5,15 +5,14 @@ import bitmex
 from Helpers.Order import Order
 import Actions.Actions as Actions
 
-BITMEX_URL = "wss://testnet.bitmex.com"
+
+# TEST_BITMEX_URL = "wss://testnet.bitmex.com"
 # BITMEX_URL = "wss://www.bitmex.com"
-
-ENDPOINT = "/realtime"
-
 
 class BitmexExchange(Exchange):
     exchange_name = "Bitmex"
     isMargin = True
+    ENDPOINT = "https://bitmex.com/api/v1"
 
     def __init__(self, apiKey, apiSecret, pairs, name):
 
@@ -26,27 +25,27 @@ class BitmexExchange(Exchange):
         # self.firts_copy_flag = True
         self.balance_updated = False
 
-        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol='XBTUSD',
+        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol='XBTUSD',
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret'], on_balance_update=self.on_balance_update)
         for pair in self.pairs:
             if pair == 'XBTUSD':
                 continue
-            self.socket[pair] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=pair,
+            self.socket[pair] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol=pair,
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret']
                                                 )
 
     def start(self, caller_callback):
         self.stop()
-        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol='XBTUSD',
+        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol='XBTUSD',
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret'], on_balance_update=self.on_balance_update,
                                                 on_order_calback=caller_callback)
         for pair in self.pairs:
             if pair == 'XBTUSD':
                 continue
-            self.socket[pair] = BitMEXWebsocket(endpoint="https://testnet.bitmex.com/api/v1", symbol=pair,
+            self.socket[pair] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol=pair,
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret'], on_order_calback=caller_callback,
                                                 )
@@ -124,14 +123,6 @@ class BitmexExchange(Exchange):
                         self.exchange_name,
                         event
                     )
-                    # {'action': 'close_position',
-                    #     'symbol': self.translate(close_order['symbol']),
-                    #     'type': self.translate(close_order['ordType']),
-                    #     'price': price,
-                    #     'id': close_order['orderID'],
-                    #     'exchange': self.exchange_name,
-                    #     'original_event': event
-                    #     }
                 else:
                     order = self._self_order_to_global(event['data'][0])
 
@@ -144,7 +135,7 @@ class BitmexExchange(Exchange):
             if 'ordStatus' not in event['data'][0]:
                 return
             if event['data'][0]['ordStatus'] == 'Canceled':
-                orders = open_orders = self.connection.Order.Order_getOrders(reverse=True, count=100).result()[0]
+                orders = self.connection.Order.Order_getOrders(reverse=True, count=100).result()[0]
                 order = list(filter(lambda o: o['orderID'] == event['data'][0]['orderID'],
                                     orders))[0]
                 global_order = self._self_order_to_global(order)
@@ -231,7 +222,7 @@ class BitmexExchange(Exchange):
                                                             ordType=self.translate(order.type),
                                                             timeInForce='GoodTillCancel'
                                                             )
-            self.logger.info(f'Create order request send')
+            self.logger.info(f'{self.name} Create order request send')
             self.logger.debug(f'Response: {new_order.result()} ')
         except:
             self.logger.exception(f'{self.name}: Error create order')

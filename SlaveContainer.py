@@ -1,6 +1,7 @@
 import asyncio
 from ExchangeInterfaces.BinanceExchange import BinanceExchange
 from ExchangeInterfaces.BitmexExchange import BitmexExchange
+from ExchangeInterfaces.BitmexTest import BitmexTest
 from ExchangeInterfaces.Exchange import Exchange
 import logging
 import Actions.Actions as Actions
@@ -29,7 +30,7 @@ class SlaveContainer:
                 else:
                     slave.stop()
                     del slave
-        except RuntimeError as error:
+        except:
             self.logger.exception("Error initialing exchanges")
 
         self.slaves = slaves
@@ -53,8 +54,8 @@ class SlaveContainer:
         if p_event is None:
             # ignore this event
             return
-
-        self.logger.info(f'\nNew action came: {p_event}')
+        self.logger.info('')
+        self.logger.info(f'New action came: {p_event}')
 
         if isinstance(p_event, Actions.ActionCancel):
             for slave in self.slaves:
