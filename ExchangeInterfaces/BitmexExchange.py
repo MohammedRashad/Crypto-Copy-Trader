@@ -12,13 +12,13 @@ import Actions.Actions as Actions
 class BitmexExchange(Exchange):
     exchange_name = "Bitmex"
     isMargin = True
-    ENDPOINT = "https://bitmex.com/api/v1"
+    ENDPOINT = "https://www.bitmex.com/api/v1"
 
     def __init__(self, apiKey, apiSecret, pairs, name):
 
         super().__init__(apiKey, apiSecret, pairs, name)
         self.pairs = list(map(lambda pair: self.translate(pair) if pair != self.translate(pair)
-        else self.logger.debug(f"Can't translate word {pair} in {BitmexExchange.exchange_name}"), self.pairs))
+        else self.logger.debug(f"Can't translate word {pair} in {self.exchange_name}"), self.pairs))
         self.pairs = list(filter(None, self.pairs))
         self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
         self.socket = {}
