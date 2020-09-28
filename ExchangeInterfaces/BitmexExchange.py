@@ -64,11 +64,8 @@ class BitmexExchange(Exchange):
 
     def get_open_orders(self):
         open_orders = []
-        if not self.socket:
-            open_orders = self.connection.Order.Order_getOrders(filter=str("{\"open\": \"true\"}")).result()[0]
-        else:
-            for pair in self.pairs:
-                open_orders += self.socket[pair].open_orders(clOrdIDPrefix="")
+        for pair in self.pairs:
+            open_orders += self.socket[pair].open_orders(clOrdIDPrefix="")
 
         general_orders = []
         for o in open_orders:
@@ -135,7 +132,7 @@ class BitmexExchange(Exchange):
             if 'ordStatus' not in event['data'][0]:
                 return
             if event['data'][0]['ordStatus'] == 'Canceled':
-                orders = self.connection.Order.Order_getOrders(reverse=True, count=100).result()[0]
+                orders = self.socket[event['data'][0]['symbol']].open_orders(clOrdIDPrefix="")
                 order = list(filter(lambda o: o['orderID'] == event['data'][0]['orderID'],
                                     orders))[0]
                 global_order = self._self_order_to_global(order)
