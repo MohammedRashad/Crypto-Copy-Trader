@@ -28,7 +28,7 @@ def create_logger():
     # Create handlers
     c_handler = logging.StreamHandler(stream=sys.stdout)
     f_handler = logging.FileHandler(f'{ROOT_DIR}/logs/cct.log', mode='w')
-    c_handler.setLevel(logging.INFO)
+    c_handler.setLevel(logging.DEBUG)
     f_handler.setLevel(logging.DEBUG)
 
     # Create formatters and add it to handlers

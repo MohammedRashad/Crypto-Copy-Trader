@@ -11,7 +11,8 @@ class Order:
         self.stop = stop
 
     def __str__(self):
-        return f"Order: price: {self.price}," \
+        return f"Order: id: {self.id}"  \
+               f"price: {self.price}," \
                f" symbol: {self.symbol}," \
                f" amount: {self.amount}," \
                f" part: {self.quantityPart}," \

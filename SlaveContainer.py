@@ -49,12 +49,15 @@ class SlaveContainer:
         # callback for event new order
         self.logger.debug(f'Event came: {event}')
 
-        p_event = self.master.process_event(event)
+        try:
+            p_event = self.master.process_event(event)
+        except:
+            self.logger.exception('Error in master.process_event()')
 
         if p_event is None:
             # ignore this event
             return
-        self.logger.info('')
+        self.logger.info('\n')
         self.logger.info(f'New action came: {p_event}')
 
         if isinstance(p_event, Actions.ActionCancel):
