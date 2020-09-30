@@ -158,7 +158,7 @@ class BitmexExchange(Exchange):
         if order_id or clOrderId:
             self._cancel_order(order_id, clOrderId)
         else:
-            self.logger.error(f'Cancel rejected: Cant find necessary order in slave {self.exchange_name}')
+            self.logger.error(f'Cancel rejected: Cant find necessary order in slave {self.name}')
 
     def _self_order_to_global(self, o) -> Order:
         if 'stopPx' not in o:
@@ -188,10 +188,10 @@ class BitmexExchange(Exchange):
                 result = self.connection.Order.Order_cancel(clOrdID=clOrderID).result()
             else:
                 result = self.connection.Order.Order_cancel(orderID=order_id).result()
-            self.logger.info(f'Cancel order request send. Response: {result}')
+            self.logger.info(f'{self.name}: Cancel order request send. Response: {result}')
             self.logger.info(f'{self.name}: Order canceled')
         except:
-            self.logger.exception(f'{self.name} Error cancel order')
+            self.logger.exception(f'{self.name}: Error cancel order')
 
     def create_order(self, order: Order):
         try:

@@ -250,8 +250,11 @@ class BitMEXWebsocket_mod:
     def __on_error(self, error):
         '''Called on fatal websocket errors. We exit on these.'''
         if not self.exited:
-            self.logger.error("Error : %s" % error)
-            raise websocket.WebSocketException(error)
+            self.logger.error("Bitmex Websocket Error : %s" % error)
+            # try to fix Error connection is already closed
+            self.__init__(self.endpoint, self.symbol, self.api_key, self.api_secret,
+                          on_order_calback=self.on_order_callback, on_balance_update=self.on_balance_update)
+            # raise websocket.WebSocketException(error)
 
     def __on_open(self):
         '''Called when the WS opens.'''
