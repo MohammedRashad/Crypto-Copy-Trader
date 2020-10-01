@@ -1,29 +1,37 @@
 import math
+import Actions.Actions as Actions
+
+from binance.exceptions import BinanceAPIException
 
 from .Exchange import Exchange
 from binance.client import Client
 from binance.websockets import BinanceSocketManager
+from Helpers.Order import Order
 
 
+class BinanceExchange(Exchange):
+    exchange_name = "Binance"
+    isMargin = False
 
-class BinanceExchage(Exchange):
+    def __init__(self, apiKey, apiSecret, pairs, name):
+        super().__init__(apiKey, apiSecret, pairs, name)
 
-    def __init__(self, apiKey, apiSecret, pairs):
-        super().__init__(apiKey, apiSecret, pairs)
-        self.exchange_name = "Binance"
         self.connection = Client(self.api['key'], self.api['secret'])
         self.update_balance()
         self.socket = BinanceSocketManager(self.connection)
         self.socket.start_user_socket(self.on_balance_update)
         self.socket.start()
+        self.is_last_order_event_completed = True
         self.step_sizes = {}
+        self.balance_updated = True
         symbol_info_arr = self.connection.get_exchange_info()
         for symbol_info in symbol_info_arr['symbols']:
             if symbol_info['symbol'] in self.pairs:
-                self.step_sizes[symbol_info['symbol']] = [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
-                                            # lambda f: f['stepSize'] if f['filterType'] == 'LOT_SIZE' else pass,symbol_info['filters']) })
+                self.step_sizes[symbol_info['symbol']] = \
+                    [f['stepSize'] for f in symbol_info['filters'] if f['filterType'] == 'LOT_SIZE'][0]
 
-        # self.connection.get_exchange_info()['filters']
+    def start(self, caller_callback):
+        self.socket.start_user_socket(caller_callback)
 
     def update_balance(self):
         account_information = self.connection.get_account()
@@ -41,118 +49,188 @@ class BinanceExchage(Exchange):
                 balance.append({'asset': ev['a'],
                                 'free': ev['f'],
                                 'locked': ev['l']})
-            self.set_balance(balance)
-
-    def get_balance(self):
-        return self.balance
+            # self.set_balance(balance)
+            i = 0
+            while i < len(self.balance):
+                for act_bal in balance:
+                    if self.balance[i]['asset'] == act_bal['asset']:
+                        self.balance[i] = act_bal
+                i += 1
 
     def get_open_orders(self):
-        return self.connection.get_open_orders()
+        orders = self.connection.get_open_orders()
+        general_orders = []
+        for o in orders:
+            quantityPart = self.get_part(o['symbol'], o["origQty"], o['price'], o['side'])
+            general_orders.append(
+                Order(o['price'], o["origQty"], quantityPart, o['orderId'], o['symbol'], o['side'], o['type'],
+                      self.exchange_name))
+        return general_orders
 
-    def cancel_order(self, symbol, orderId):
-        self.connection.cancel_order(symbol=symbol, orderId=orderId)
-        print('order canceled')
+    def _cancel_order(self, order_id, symbol):
+        self.connection.cancel_order(symbol=symbol, orderId=order_id)
+        self.logger.info(f'{self.name}: Order canceled')
+
+    async def on_cancel_handler(self, event: Actions.ActionCancel):
+        try:
+            slave_order_id = self._cancel_order_detector(event.price)
+            self._cancel_order(slave_order_id, event.symbol)
+        except BinanceAPIException as error:
+            self.logger.error(f'{self.name}: error {error.message}')
+        except:
+            self.logger.error(f"{self.name}: error in action: {event.name} in slave {self.name}")
 
     def stop(self):
         self.socket.close()
 
-    def _cancel_order_detector(self, event):
+    def _cancel_order_detector(self, price):
         # detect order id which need to be canceled
         slave_open_orders = self.connection.get_open_orders()
         for ordr_open in slave_open_orders:
-            if ordr_open['price'] == event['p']:
+            if float(ordr_open['price']) == float(price):
                 return ordr_open['orderId']
 
-    async def on_order_handler(self, event):
-        # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
+    def process_event(self, event):
+        # return event in generic type from websocket
 
-        if event['x'] == 'CANCELED':
-            slave_order_id = self._cancel_order_detector(event)
-            self.cancel_order(event['s'], slave_order_id)
-        else:
-            self.create_order(event['s'],
-                              event['S'],
-                              event['o'],
-                              event['p'],
-                              event['q'],
-                              event['f'],
-                              event['P']
-                              )
+        # if this event in general type it was send from start function and need call firs_copy
+        if 'exchange' in event:
+            return event
 
-    def create_order(self, symbol, side, type, price, quantityPart, timeInForce, stopPrice=0):
+        if event['e'] == 'outboundAccountPosition':
+            self.is_last_order_event_completed = True
+
+        if event['e'] == 'executionReport':
+            if event['X'] == 'FILLED':
+                return
+            elif event['x'] == 'CANCELED':
+                return Actions.ActionCancel(
+                    event['s'],
+                    event['p'],
+                    event['i'],
+                    self.exchange_name,
+                    event
+                )
+            self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
+            # sometimes can came event executionReport x == filled and x == new together so we need flag
+            self.is_last_order_event_completed = False
+            return
+
+        elif event['e'] == 'outboundAccountInfo':
+            if self.is_last_order_event_completed:
+                return
+
+            order_event = self.last_order_event
+
+            if order_event['s'] not in self.pairs:
+                return
+
+            if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
+                order_event['p'] = self.connection.get_ticker(symbol=order_event['s'])['lastPrice']
+
+            # part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
+
+            self.on_balance_update(event)
+
+            # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
+            order = Order(order_event['p'],
+                          order_event['q'],
+                          self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S']),
+                          order_event['i'],
+                          order_event['s'],
+                          order_event['S'],
+                          order_event['o'],
+                          self.exchange_name,
+                          order_event['P'])
+            return Actions.ActionNewOrder(order,
+                                          self.exchange_name,
+                                          event)
+
+    async def on_order_handler(self, event: Actions.ActionNewOrder):
+        self.create_order(event.order)
+
+    def create_order(self, order):
         """
-        :param symbol:
-        :param side:
-        :param type: LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT, LIMIT_MAKER
-        :param price: required if limit order
-        :param quantityPart: the part that becomes an order from the entire balance
-        :param timeInForce: required if limit order
-        :param stopPrice: required if type == STOP_LOSS or TAKE_PROFIT
+        :param order:
         """
-        # # if order[side] == sell don't need calculate quantity
-        # if side == 'BUY':
-        #     quantity = self.calc_quatity_from_part(symbol, quantityPart, price)
-        # else:
-        #     quantity = quantityPart
-
-        quantity = self.calc_quantity_from_part(symbol, quantityPart, price, side)
-        print('Slave ' + str(self.get_balance_market_by_symbol(symbol)) + ' '
-                       + str(self.get_balance_coin_by_symbol(symbol)) +
-              ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(price))
+        quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
+        self.logger.info('Slave ' + self.name + ' ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
+                         + str(self._get_balance_coin_by_symbol(order.symbol)) +
+                         ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
-            if (type == 'STOP_LOSS_LIMIT' or type == "TAKE_PROFIT_LIMIT"):
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
-                                             price=price,
+            if order.type == 'STOP_LOSS_LIMIT' or order.type == "TAKE_PROFIT_LIMIT":
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
+                                             price=order.price,
                                              quantity=quantity,
-                                             timeInForce=timeInForce,
-                                             stopPrice=stopPrice)
-            if (type == 'MARKET'):
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
+                                             timeInForce='GTC',
+                                             stopPrice=order.stop)
+            if order.type == 'MARKET':
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
                                              quantity=quantity)
             else:
-                self.connection.create_order(symbol=symbol,
-                                             side=side,
-                                             type=type,
+                self.connection.create_order(symbol=order.symbol,
+                                             side=order.side,
+                                             type=order.type,
                                              quantity=quantity,
-                                             price=price,
-                                             timeInForce=timeInForce)
-            print("order created")
+                                             price=order.price,
+                                             timeInForce='GTC')
+            self.logger.info(f"{self.name}: order created")
         except Exception as e:
-            print(str(e))
+            self.logger.error(str(e))
+
+    def _get_balance_market_by_symbol(self, symbol):
+        return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
+
+    def _get_balance_coin_by_symbol(self, symbol):
+        return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
+
+    def get_part(self, symbol: str, quantity: float, price: float, side: str):
+        # get part of the total balance of this coin
+
+        # if order[side] == sell: need obtain coin balance
+        if side == 'BUY':
+            get_context_balance = self._get_balance_market_by_symbol
+            market_value = float(quantity) * float(price)
+        else:
+            get_context_balance = self._get_balance_coin_by_symbol
+            market_value = float(quantity)
+
+        balance = float(get_context_balance(symbol)['free'])
+
+        # if first_copy the balance was update before
+        if self.balance_updated:
+            balance += float(get_context_balance(symbol)['locked'])
+        else:
+            balance += market_value
+
+        part = market_value / balance
+        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
+        return part
 
     def calc_quantity_from_part(self, symbol, quantityPart, price, side):
         # calculate quantity from quantityPart
 
         # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            cur_bal = float(self.get_balance_market_by_symbol(symbol)['free'])
-            quantity = float(quantityPart) * float(cur_bal) / float(price)
-        else:
-            cur_bal = float(self.get_balance_coin_by_symbol(symbol)['free'])
-            quantity = quantityPart*cur_bal
 
-        # balanceIndex = [idx for idx, element in enumerate(self.get_balance()) if element['asset'] == str(symbol)[3:]][0]
-        # cur_bal = float(self.get_balance()[balanceIndex]['free'])
+        if side == 'BUY':
+            get_context_balance = self._get_balance_market_by_symbol
+            buy_koef = float(price)
+        else:
+            get_context_balance = self._get_balance_coin_by_symbol
+            buy_koef = 1
+
+        cur_bal = float(get_context_balance(symbol)['free'])
+
+        if self.balance_updated:
+            cur_bal += float(get_context_balance(symbol)['locked'])
+
+        quantity = quantityPart * cur_bal / buy_koef
+
         stepSize = float(self.step_sizes[symbol])
         precision = int(round(-math.log(stepSize, 10), 0))
         quantity = round(quantity, precision)
-
         return quantity
-
-    def get_part(self, symbol, quantity, price, side):
-        # get part of the total balance of this coin
-
-        # if order[side] == sell: need obtain coin balance
-        if side == 'BUY':
-            balance = float(self.get_balance_market_by_symbol(symbol)['free'])
-            part = float(quantity)*float(price)/balance
-        else:
-            balance = float(self.get_balance_coin_by_symbol(symbol)['free'])
-            part = float(quantity)/balance
-
-        part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
-        return part

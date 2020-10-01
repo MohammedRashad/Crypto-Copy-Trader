@@ -1,10 +1,10 @@
-from flask import Flask, Response, render_template, request, redirect
-from SlaveContainer import SlaveContainer
+from flask import Flask, render_template, request, redirect
 from threading import Thread
-from time import sleep
-from main import *
 import sqlite3 as sql
 import csv
+from Helpers.Helpers import server_begin
+from SlaveContainer import SlaveContainer
+import logging
 
 app = Flask(__name__)
 
@@ -13,30 +13,10 @@ test_false = True
 socket_usage = False
 
 
-def my_function(client, slaves, old_orders):
-    print("I'm in thread #1 ")
-    global stop_run
-    start_time = time.time()
-    while not stop_run:
-        old_orders = looping_engine(client, slaves, old_orders)
-        end = time.time()
-        print("time elasped in thread 1 = " + str(end - start_time) + " sec")
-
-
-def my_function2(file_name, client, slaves, old_orders, Thread_num):
-    print("I'm in thread #" + Thread_num)
-    global stop_run
-    start_time = time.time()
-    while not stop_run:
-        copy_market(client, slaves, file_name)
-        end = time.time()
-        print("time elasped in thread" + Thread_num + " = " + str(end - start_time) + " sec")
-
-
-def socket_function(master, slaves, old_orders):
-    print("Using web socket")
-    container = SlaveContainer(master, slaves)
+def socket_function(container: SlaveContainer):
     container.start()
+    # first_copy
+    container.first_copy(container.master.get_open_orders())
     # set variable for stop socket
     set_stop_run.container = container
     global socket_usage
@@ -44,23 +24,33 @@ def socket_function(master, slaves, old_orders):
 
 
 def manual_run():
-    client, slaves, old_orders = server_begin()
-    t1 = Thread(target=socket_function, args=(client, slaves, old_orders,))
+    container = server_begin()
+    t1 = Thread(target=socket_function, args=(container,))
     t1.start()
     return "Processing"
 
 
 @app.route("/stop", methods=['GET'])
 def set_stop_run():
+    logger = logging.getLogger('cct')
+    global stop_run
+    if not stop_run:
+        logger.warning('You cannot stop without starting. Think about it :)')
+        return redirect("/")
+    stop_run = False
     set_stop_run.container.stop()
-    print('WebSocket closed')
+    logger.info('WebSocket closed')
     return redirect("/", code=302)
 
 
 @app.route("/run", methods=['GET'])
 def run_process():
     global stop_run
-    stop_run = False
+    if stop_run:
+        logger = logging.getLogger('cct')
+        logger.warning('The Program already has been running')
+        return redirect("/")
+    stop_run = True
     manual_run()
     return redirect("/", code=302)
 

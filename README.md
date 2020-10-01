@@ -5,24 +5,48 @@ Copy trading tool for cryptocurrencies - written in Python & Flask
 # Intro
 bot used to make a mass buying or selling of identical bots to do basic copy trading. 
 
+#### Supported Exchanges
+- Binance Spot
+- Bitmex
+- Bitmex Testnet
+
+# Installation and Launch
+
+1. Downland and install requirements
+    ``` 
+    git clone https://github.com/MohammedRashad/Crypto-Copy-Trader.git
+    cd Crypto-Copy-Trader
+    pip install -r requirements.txt
+    cp ./config_files/config-sample.json ./config_files/config.json
+    ```
+2. Configure `config.json`
+    - Open `./config_files/config.json` in text editor and paste your api keys and secrets to master and slaves 
+    - Possible values for a variable `exchange_name` you can find in folder ExchangeInterfaces. 
+
+3. Run `pyhton api.py`
+     
+4. Open GUI
+    - go to http://127.0.0.1:5000/ or http://0.0.0.0:5000/
+    - click `Run` button
+    - see log in terminal or in file `logs/cct.log` 
+    - when will you see message `Launch complete` you can place the orders
+
 # Features
 - Database SQLite
 - Slave-Master Configuration
+- Copy active orders on launch
 - WebUI
 - Flask API
 - All orders Supported
 - Adding slaves in realtime
 - Ratio for not similar accounts 
 - Built with bootstrap
-- Market orders support
-- Bittrex Platform (still under testing) 
-
-# TO DO
-- Binance Futures 
 
 # Known Bugs
-- Currently Nothing
-
+- Add and delete slaves buttons not working with new config file. So need to fill `config.json` manually
+- database is not related with `config.json`
+- Bitmex working only with `XBTUSD` and `ETHUSD` pairs now
+ 
  Please [open an issue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
  
 

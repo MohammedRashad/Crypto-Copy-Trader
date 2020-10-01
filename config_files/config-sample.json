@@ -1,0 +1,26 @@
+{
+  "master": {
+    "name": "Master" ,
+    "key":"" ,
+    "secret" :"",
+    "exchange_name": "BitmexExchange"
+     },
+  "slaves":
+    [{
+      "name": "Slave1",
+      "key": "",
+      "secret": "",
+      "exchange_name": "BitmexExchange"
+      },
+    {
+      "name": "Slave2",
+      "key": "",
+      "secret": "",
+      "exchange_name": "BinanceExchange"
+
+    }
+    ],
+  "settings": {
+
+  }
+}
