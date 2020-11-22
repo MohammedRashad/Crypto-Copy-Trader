@@ -20,13 +20,7 @@ class Exchange(ABC):
     def get_balance(self) -> float:
         return self.balance
 
-    def get_trading_symbols(self):
-        symbols = set()
-        for pair in self.pairs:
-            pair = str(pair)
-            symbols.add(pair[:3])
-            symbols.add(pair[3:])
-        return symbols
+
 
     @abstractmethod
     def stop(self):
