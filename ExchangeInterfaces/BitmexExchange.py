@@ -13,6 +13,7 @@ class BitmexExchange(Exchange):
     exchange_name = "Bitmex"
     isMargin = True
     ENDPOINT = "https://www.bitmex.com/api/v1"
+    TEST = False
 
     def __init__(self, apiKey, apiSecret, pairs, name):
 
@@ -20,18 +21,18 @@ class BitmexExchange(Exchange):
         self.pairs = list(map(lambda pair: self.translate(pair) if pair != self.translate(pair)
         else self.logger.debug(f"Can't translate word {pair} in {self.exchange_name}"), self.pairs))
         self.pairs = list(filter(None, self.pairs))
-        self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret)
+        self.connection = bitmex.bitmex(api_key=apiKey, api_secret=apiSecret, test=self.TEST)
         self.socket = {}
         # self.firts_copy_flag = True
         self.balance_updated = False
-
-        self.socket['XBTUSD'] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol='XBTUSD',
-                                                api_key=self.api['key'],
-                                                api_secret=self.api['secret'], on_balance_update=self.on_balance_update)
         for pair in self.pairs:
             if pair == 'XBTUSD':
-                continue
-            self.socket[pair] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol=pair,
+                self.socket['XBTUSD'] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol='XBTUSD',
+                                                        api_key=self.api['key'],
+                                                        api_secret=self.api['secret'],
+                                                        on_balance_update=self.on_balance_update)
+            else:
+                self.socket[pair] = BitMEXWebsocket(endpoint=self.ENDPOINT, symbol=pair,
                                                 api_key=self.api['key'],
                                                 api_secret=self.api['secret']
                                                 )
@@ -56,11 +57,14 @@ class BitmexExchange(Exchange):
 
     def on_balance_update(self, event):
         if 'availableMargin' in event:
-            self.balance = event['availableMargin']
+            self.balance = event['availableMargin'] / (10**8) * (self.socket['XBTUSD'].get_instrument()['midPrice']\
+            if "XBTUSD" in self.socket else self.connection.Instrument.Instrument_get(symbol='XBTUSD', count=1, reverse=True).result()[0][0]['midPrice'])
+
             self.balance_updated = True
 
     def update_balance(self):
-        self.balance = self.socket[self.pairs[0]].funds()['availableMargin']
+        self.balance = self.socket['XBTUSD'].funds()['availableMargin'] / 10**8 *\
+                       self.socket['XBTUSD'].get_instrument()['midPrice']
 
     def get_open_orders(self):
         open_orders = []
@@ -72,22 +76,25 @@ class BitmexExchange(Exchange):
             general_orders.append(self._self_order_to_global(o))
         return general_orders
 
-    def get_part(self, symbol, quantity, price):
-        btc = float(quantity) / float(price)
-        btc_satoshi = btc * (10 ** 8)
+    def get_part(self, symbol,  quantity: float, price: float):
+        # btc = float(quantity) / float(price)
+        # btc_satoshi = btc * (10 ** 8)
+
+        usd_order_value = quantity
 
         balance = self.get_balance()
-        if self.balance_updated:
-            part = float(btc_satoshi) / float(balance + (float(price) * float(quantity)))
-        else:
-            part = float(btc_satoshi) / float(balance)
+        # if self.balance_updated:
+        #     part = usd_order_value / float(balance + usd_order_value)
+        # else:
+        #     part = usd_order_value / balance
+        part = usd_order_value / balance
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
         return part
 
     def calc_quantity_from_part(self, symbol, quantityPart, price, **kwargs):
-        btc_satoshi = float(quantityPart) * float(self.get_balance())
-        btc = btc_satoshi / (10 ** 8)
-        amount_usd = float(btc) * float(price)
+        amount_usd = float(quantityPart) * float(self.get_balance())
+        # btc = btc_satoshi / (10 ** 8)
+        # amount_usd = float(btc) * float(price)
         return amount_usd
 
     def process_event(self, event):

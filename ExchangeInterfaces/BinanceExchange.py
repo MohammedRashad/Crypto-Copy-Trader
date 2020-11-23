@@ -17,6 +17,12 @@ class BinanceExchange(Exchange):
         super().__init__(apiKey, apiSecret, pairs, name)
 
         self.connection = Client(self.api['key'], self.api['secret'])
+
+        symbol_info_arr = self.connection.get_exchange_info()
+        dict_symbols_info = {item['symbol']: item for item in symbol_info_arr["symbols"]}
+        actual_symbols_info = {symbol: dict_symbols_info[symbol] for symbol in self.pairs}
+        self.symbols_info = actual_symbols_info
+
         self.update_balance()
         self.socket = BinanceSocketManager(self.connection)
         self.socket.start_user_socket(self.on_balance_update)
@@ -24,7 +30,7 @@ class BinanceExchange(Exchange):
         self.is_last_order_event_completed = True
         self.step_sizes = {}
         self.balance_updated = True
-        symbol_info_arr = self.connection.get_exchange_info()
+
         for symbol_info in symbol_info_arr['symbols']:
             if symbol_info['symbol'] in self.pairs:
                 self.step_sizes[symbol_info['symbol']] = \
@@ -37,9 +43,19 @@ class BinanceExchange(Exchange):
         account_information = self.connection.get_account()
         self.set_balance(account_information['balances'])
 
+    def get_trading_symbols(self):
+        symbols = set()
+        if not self.symbols_info:
+            raise RuntimeError("Cant get exchange info")
+        for key, value in self.symbols_info.items():
+            symbols.add(value["quoteAsset"])
+            symbols.add(value["baseAsset"])
+        return symbols
+
     def set_balance(self, balances):
         symbols = self.get_trading_symbols()
-        actual_balance = list(filter(lambda elem: str(elem['asset']) in symbols, balances))
+        dict_balances = {item['asset']: item for item in balances}
+        actual_balance = {symbol: dict_balances[symbol] for symbol in symbols}
         self.balance = actual_balance
 
     def on_balance_update(self, upd_balance_ev):
@@ -49,13 +65,7 @@ class BinanceExchange(Exchange):
                 balance.append({'asset': ev['a'],
                                 'free': ev['f'],
                                 'locked': ev['l']})
-            # self.set_balance(balance)
-            i = 0
-            while i < len(self.balance):
-                for act_bal in balance:
-                    if self.balance[i]['asset'] == act_bal['asset']:
-                        self.balance[i] = act_bal
-                i += 1
+            self.balance.update({item['asset']: item for item in balance})
 
     def get_open_orders(self):
         orders = self.connection.get_open_orders()
@@ -154,8 +164,8 @@ class BinanceExchange(Exchange):
         :param order:
         """
         quantity = self.calc_quantity_from_part(order.symbol, order.quantityPart, order.price, order.side)
-        self.logger.info('Slave ' + self.name + ' ' + str(self._get_balance_market_by_symbol(order.symbol)) + ' '
-                         + str(self._get_balance_coin_by_symbol(order.symbol)) +
+        self.logger.info('Slave ' + self.name + ' ' + str(self._get_quote_balance(order.symbol)) + ' '
+                         + str(self._get_base_balance(order.symbol)) +
                          ', Create Order:' + ' amount: ' + str(quantity) + ', price: ' + str(order.price))
         try:
             if order.type == 'STOP_LOSS_LIMIT' or order.type == "TAKE_PROFIT_LIMIT":
@@ -182,21 +192,21 @@ class BinanceExchange(Exchange):
         except Exception as e:
             self.logger.error(str(e))
 
-    def _get_balance_market_by_symbol(self, symbol):
-        return list(filter(lambda el: el['asset'] == symbol[3:], self.get_balance()))[0]
+    def _get_quote_balance(self, symbol):
+        return self.balance[self.symbols_info[symbol]['quoteAsset']]
 
-    def _get_balance_coin_by_symbol(self, symbol):
-        return list(filter(lambda el: el['asset'] == symbol[:3], self.get_balance()))[0]
+    def _get_base_balance(self, symbol):
+        return self.balance[self.symbols_info[symbol]['baseAsset']]
 
     def get_part(self, symbol: str, quantity: float, price: float, side: str):
         # get part of the total balance of this coin
 
         # if order[side] == sell: need obtain coin balance
         if side == 'BUY':
-            get_context_balance = self._get_balance_market_by_symbol
+            get_context_balance = self._get_quote_balance
             market_value = float(quantity) * float(price)
         else:
-            get_context_balance = self._get_balance_coin_by_symbol
+            get_context_balance = self._get_base_balance
             market_value = float(quantity)
 
         balance = float(get_context_balance(symbol)['free'])
@@ -217,10 +227,10 @@ class BinanceExchange(Exchange):
         # if order[side] == sell: need obtain coin balance
 
         if side == 'BUY':
-            get_context_balance = self._get_balance_market_by_symbol
+            get_context_balance = self._get_quote_balance
             buy_koef = float(price)
         else:
-            get_context_balance = self._get_balance_coin_by_symbol
+            get_context_balance = self._get_base_balance
             buy_koef = 1
 
         cur_bal = float(get_context_balance(symbol)['free'])

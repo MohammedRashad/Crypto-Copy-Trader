@@ -17,16 +17,10 @@ class Exchange(ABC):
         self.ids = []  # store here order which was created by program
         self.logger = logging.getLogger('cct')
 
-    def get_balance(self):
+    def get_balance(self) -> float:
         return self.balance
 
-    def get_trading_symbols(self):
-        symbols = set()
-        for pair in self.pairs:
-            pair = str(pair)
-            symbols.add(pair[:3])
-            symbols.add(pair[3:])
-        return symbols
+
 
     @abstractmethod
     def stop(self):
