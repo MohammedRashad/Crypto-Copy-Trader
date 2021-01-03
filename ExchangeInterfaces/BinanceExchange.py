@@ -59,7 +59,7 @@ class BinanceExchange(Exchange):
         self.balance = actual_balance
 
     def on_balance_update(self, upd_balance_ev):
-        if upd_balance_ev['e'] == 'outboundAccountInfo':
+        if upd_balance_ev['e'] == 'outboundAccountPosition':
             balance = []
             for ev in upd_balance_ev['B']:
                 balance.append({'asset': ev['a'],
@@ -108,9 +108,9 @@ class BinanceExchange(Exchange):
             return event
 
         if event['e'] == 'outboundAccountPosition':
-            self.is_last_order_event_completed = True
+            self.on_balance_update(event)
 
-        if event['e'] == 'executionReport':
+        elif event['e'] == 'executionReport':
             if event['X'] == 'FILLED':
                 return
             elif event['x'] == 'CANCELED':
@@ -121,40 +121,31 @@ class BinanceExchange(Exchange):
                     self.exchange_name,
                     event
                 )
-            self.last_order_event = event  # store event order_event coz we need in outboundAccountInfo event
-            # sometimes can came event executionReport x == filled and x == new together so we need flag
-            self.is_last_order_event_completed = False
+            elif event['X'] == 'NEW':
+                order_event = event
+
+                if order_event['s'] not in self.pairs:
+                    return
+
+                if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
+                    order_event['p'] = self.connection.get_ticker(symbol=order_event['s'])['lastPrice']
+
+                # part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
+
+                # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
+                order = Order(order_event['p'],
+                              order_event['q'],
+                              self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S']),
+                              order_event['i'],
+                              order_event['s'],
+                              order_event['S'],
+                              order_event['o'],
+                              self.exchange_name,
+                              order_event['P'])
+                return Actions.ActionNewOrder(order,
+                                              self.exchange_name,
+                                              event)
             return
-
-        elif event['e'] == 'outboundAccountInfo':
-            if self.is_last_order_event_completed:
-                return
-
-            order_event = self.last_order_event
-
-            if order_event['s'] not in self.pairs:
-                return
-
-            if order_event['o'] == 'MARKET':  # if market order, we haven't price and cant calculate quantity
-                order_event['p'] = self.connection.get_ticker(symbol=order_event['s'])['lastPrice']
-
-            # part = self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S'])
-
-            self.on_balance_update(event)
-
-            # shortcut mean https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md#order-update
-            order = Order(order_event['p'],
-                          order_event['q'],
-                          self.get_part(order_event['s'], order_event['q'], order_event['p'], order_event['S']),
-                          order_event['i'],
-                          order_event['s'],
-                          order_event['S'],
-                          order_event['o'],
-                          self.exchange_name,
-                          order_event['P'])
-            return Actions.ActionNewOrder(order,
-                                          self.exchange_name,
-                                          event)
 
     async def on_order_handler(self, event: Actions.ActionNewOrder):
         self.create_order(event.order)
@@ -214,8 +205,8 @@ class BinanceExchange(Exchange):
         # if first_copy the balance was update before
         if self.balance_updated:
             balance += float(get_context_balance(symbol)['locked'])
-        else:
-            balance += market_value
+        # else:
+        #     balance += market_value
 
         part = market_value / balance
         part = part * 0.99  # decrease part for 1% for avoid rounding errors in calculation
