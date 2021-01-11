@@ -30,6 +30,21 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
     - click `Run` button
     - see log in terminal or in file `logs/cct.log` 
     - when will you see message `Launch complete` you can place the orders
+    
+    
+# Installation with Docker
+
+1. Build Docker container
+
+```
+docker build -t crypto-copy-trader .
+```
+
+2. Run first Docker container
+
+```
+docker run --publish 8000:5000 --detach --name crypto-copy-trader crypto-copy-trader
+```
 
 # Features
 - Database SQLite
