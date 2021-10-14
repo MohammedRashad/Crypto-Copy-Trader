@@ -61,7 +61,9 @@ docker run --publish 8000:5000 --detach --name crypto-copy-trader crypto-copy-tr
 - Add and delete slaves buttons not working with new config file. So need to fill `config.json` manually
 - database is not related with `config.json`
 - Bitmex working only with `XBTUSD` and `ETHUSD` pairs now
-- https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/53 (environment python 3.8.x)
+- You may have an issue "ModuleNotFoundError: No module named 'jsonschema.compat'" (python 3.8.x)
+  Please refer this post: https://stackoverflow.com/questions/69426664/modulenotfounderror-no-module-named-jsonschema-compat
+  *solution*: pip install -Iv jsonschema==3.2.0
  
  Please [open an issue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
  
