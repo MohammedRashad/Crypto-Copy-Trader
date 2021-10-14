@@ -23,7 +23,7 @@ bot used to make a mass buying or selling of identical bots to do basic copy tra
     - Open `./config_files/config.json` in text editor and paste your api keys and secrets to master and slaves 
     - Possible values for a variable `exchange_name` you can find in folder ExchangeInterfaces. 
 
-3. Run `pyhton api.py`
+3. Run `python api.py`
      
 4. Open GUI
     - go to http://127.0.0.1:5000/ or http://0.0.0.0:5000/
@@ -61,6 +61,7 @@ docker run --publish 8000:5000 --detach --name crypto-copy-trader crypto-copy-tr
 - Add and delete slaves buttons not working with new config file. So need to fill `config.json` manually
 - database is not related with `config.json`
 - Bitmex working only with `XBTUSD` and `ETHUSD` pairs now
+- https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/53 (environment python 3.8.x)
  
  Please [open an issue](https://github.com/MohammedRashad/Crypto-Copy-Trader/issues/new) to help us fix any bugs or request features if needed.
  
