@@ -2,6 +2,9 @@
 Copy trading tool for cryptocurrencies - written in Python & Flask
 <br/> Makes you copy high-performing masters without doing any effort
 
+Disclaimer : this is a hobby project not intended for commercial use, and is provided as-is without warranty or liability. capital at risk. 
+
+
 # Intro
 bot used to make a mass buying or selling of identical bots to do basic copy trading. 
 
