@@ -1,4 +1,4 @@
-flask==1.0.2
+flask==2.3.2
 cython
 python_binance==0.7.4
 deepdiff==4.0.9
